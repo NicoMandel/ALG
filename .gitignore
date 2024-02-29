@@ -1,6 +1,9 @@
 # tmp file at any depth
 **/.tmp/
 
+# vscode files at any depth
+**/.vscode/
+
 # Byte-compiled / optimized / DLL files
 **/__pycache__/
 *.py[cod]

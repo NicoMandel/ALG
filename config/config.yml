@@ -1,0 +1,5 @@
+# Config file to explain the mapping of colour values to classes
+
+0: 0    # background
+127: 1  # vegetation
+255: 2  # ALG
