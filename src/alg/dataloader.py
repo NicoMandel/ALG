@@ -33,7 +33,8 @@ class ALGDataset(VisionDataset):
     
     def __init__(self, root: str, transforms = None, transform = None, target_transform = None,
                  img_folder : str = "images", label_folder = "labels",
-                 num_classes : int = 3, img_ext = ".tif", label_ext=".tif"
+                 num_classes : int = 3, img_ext = ".tif", label_ext=".tif",
+                 clean_values : tuple = (0, 127)
                  ) -> None:
         super().__init__(root, transforms, transform, target_transform)
 
@@ -43,6 +44,8 @@ class ALGDataset(VisionDataset):
 
         self.img_ext = img_ext
         self.label_ext = label_ext
+
+        self.clean_values = clean_values
 
         # self.img_list = list(p.resolve().stem for p in self.img_dir.glob("**/*") if p.suffix in IMG_EXT)            # potentially replace by x.stem
         self.img_list = list([x.stem for x in self.img_dir.glob("*"+img_ext)])
@@ -63,10 +66,24 @@ class ALGDataset(VisionDataset):
             img = load_image(img_name)
 
             label = load_label(label_name)
+            label = self._clean_mask(mask=label)
 
             if self.transforms is not None:
                 transformed = self.transforms(image=img, mask=label)
                 label = transformed["mask"]
                 img = transformed["image"]
             
-            return img, label
+            return img, label, fname
+    
+    def _clean_mask(self, mask : np.ndarray) -> np.ndarray:
+        """
+            Function to clean loading artifacts from mask, when values are larger than 127, they get allocated to 255
+        """
+        cl1, cl2 = self.clean_values
+        mask[(mask > cl1) & (mask <= cl2)] = 127
+        mask[mask > cl2] = 255
+        return mask
+
+
+
+
