@@ -34,7 +34,8 @@ class ALGDataset(VisionDataset):
     def __init__(self, root: str, transforms = None, transform = None, target_transform = None,
                  img_folder : str = "images", label_folder = "labels",
                  num_classes : int = 3, img_ext = ".tif", label_ext=".tif",
-                 clean_values : tuple = (0, 127)
+                 clean_values : tuple = (0, 127),
+                 threshold : float = 0.6
                  ) -> None:
         super().__init__(root, transforms, transform, target_transform)
 
@@ -46,16 +47,16 @@ class ALGDataset(VisionDataset):
         self.label_ext = label_ext
 
         self.clean_values = clean_values
+        self.threshold = threshold
 
         # self.img_list = list(p.resolve().stem for p in self.img_dir.glob("**/*") if p.suffix in IMG_EXT)            # potentially replace by x.stem
         self.img_list = list([x.stem for x in self.img_dir.glob("*"+img_ext)])
-        print("Test debug line")
 
     def __len__(self) -> int:
         return len(self.img_list)
     
 
-    def __getitem__(self, idx: int) -> tuple:
+    def __getitem__(self, idx: int) -> tuple[np.ndarray, np.ndarray]:
             if torch.torch.is_tensor(idx):
                 idx = idx.tolist()
             
@@ -73,7 +74,7 @@ class ALGDataset(VisionDataset):
                 label = transformed["mask"]
                 img = transformed["image"]
             
-            return img, label, fname
+            return img, label
     
     def _clean_mask(self, mask : np.ndarray) -> np.ndarray:
         """

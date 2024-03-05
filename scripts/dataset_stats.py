@@ -16,23 +16,21 @@ if __name__=="__main__":
     cfg = load_config(conff)
     
     print(len(alg_ds))
-    ctr = 0
-    for i in range(len(alg_ds)):
-        name = alg_ds.img_list[i]
-        img, mask, ident = alg_ds[i]
-        unq = np.unique(mask)
-        if unq.size > 3:
-            ctr += 1
-            print("image: {}\nUnique element count: {}".format(
-                ident, len(unq)
-            ))
-            # fig, axs = plt.subplots(1,2)
-            # axs[0].imshow(img)
-            # # axs[0].xticks('off')
-            # # axs[1].yticks('off')
-            # # axs[0].yticks('off')
-            # # axs[1].xticks('off')
-            # axs[1].imshow(mask)
-            # plt.suptitle(ident)
-            # plt.show()
-    print("{} images with blanks. Removed".format(ctr))
+    
+    # counting histograms
+    percentage_ranges = range(0, 100, 10)
+    counts = [0] * len(percentage_ranges)
+
+    zero_percentages = np.array([(np.count_nonzero(mask == 0) / mask.size) * 100 for _, mask in alg_ds])
+    perc_ranges = np.arange(0, 101, 10)
+    hist, bin_edges = np.histogram(zero_percentages, bins=perc_ranges)
+
+    plt.bar(bin_edges[:-1], hist / len(alg_ds), width=8)
+    plt.xlabel('Percentage Range')
+    plt.ylabel('Percentage of Images')
+    plt.title('Histogram of Images with ALG')
+    plt.xticks(perc_ranges)
+    plt.grid(axis='y')
+    plt.show()
+
+    
