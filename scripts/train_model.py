@@ -18,11 +18,12 @@ def parse_args():
         "model",
         help="""Choose one of the predefined ResNet models provided by torchvision. e.g. 50""",
         type=int,
+        default=18
     )
     parser.add_argument(
-        "num_classes", help="""Number of classes to be learned.""", type=int
+        "num_classes", help="""Number of classes to be learned.""", type=int, default=3,
     )
-    parser.add_argument("num_epochs", help="""Number of Epochs to Run.""", type=int)
+    parser.add_argument("num_epochs", help="""Number of Epochs to Run.""", type=int, default=300)
     parser.add_argument(
         "train_set", help="""Path to training data folder.""", type=Path
     )
@@ -46,7 +47,7 @@ def parse_args():
     parser.add_argument(
         "-lr",
         "--learning_rate",
-        help="Adjust learning rate of optimizer.",
+        help="Adjust learning rate of optimizer. Default 1/1000",
         type=float,
         default=1e-3,
     )
@@ -60,20 +61,20 @@ def parse_args():
     parser.add_argument(
         "-tr",
         "--transfer",
-        help="""Determine whether to use pretrained model or train from scratch. Defaults to True.""",
+        help="""Determine whether to use pretrained model or train from scratch. Defaults to from scratch.""",
         action="store_true",
     )
     parser.add_argument(
         "-to",
         "--tune_fc_only",
-        help="Tune only the final, fully connected layers.",
+        help="Tune only the final, fully connected layers. Defaults to false",
         action="store_true",
     )
     parser.add_argument(
         "-s", "--save_path", help="""Path to save model trained model checkpoint."""
     )
     parser.add_argument(
-        "-g", "--gpus", help="""Enables GPU acceleration.""", type=int, default=None
+        "-g", "--gpus", help="""Enables GPU acceleration.""", type=int, default=0
     )
     return parser.parse_args()
 
