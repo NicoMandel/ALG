@@ -85,6 +85,53 @@ class ALGDataset(VisionDataset):
         mask[mask > cl2] = 255
         return mask
 
+class ALGDataModule(pl.LightningDataModule):
+    """
+        Datamodule to split for training and validation
+    """
 
+    def __init__(self, root : str, img_folder : str = "images", mask_folder : str = "masks",
+                 num_classes : int = 3, img_ext = ".tif", label_ext=".tif",
+                 clean_values : tuple = (0, 127), threshold : float = 0.6,
+                 num_workers : int = 1, batch_size : int = 16) -> None:
+        super().__init__()
+        self.root = root
+        self.img_folder = img_folder
+        self.img_ext = img_ext
+        self.mask_folder = mask_folder
+        self.mask_ext = label_ext
 
+        self.num_classes = num_classes
+        self.clean_values = clean_values
+        self.threshold = threshold
+        
+        self.num_workers = num_workers
+        self.batch_size = batch_size
 
+    def prepare_data(self):
+        """
+            Preparing data splits
+        """
+        self.default_dataset = ALGDataset(self.root, self.train_transforms, img_folder=self.img_folder, mask_folder=self.mask_folder,
+                                            img_ext=self.img_ext, mask_ext=self.mask_ext)
+        
+        # Splitting the dataset
+        dataset_len = len(self.default_dataset)
+        train_part = int( (1-self.val_percentage) * dataset_len)
+        val_part = dataset_len - train_part
+
+        # Actual datasets
+        self.train_dataset, self.val_dataset = random_split(self.default_dataset, [train_part, val_part])
+
+    # Dataloaders:
+    def train_dataloader(self):
+        dl = DataLoader(self.train_dataset, batch_size=self.batch_size, num_workers=self.num_workers,
+        pin_memory=True
+        )
+        return dl
+    
+    def val_dataloader(self):
+        dl = DataLoader(self.val_dataset, batch_size=self.batch_size, num_workers=self.num_workers,
+        pin_memory=True
+        )
+        return dl

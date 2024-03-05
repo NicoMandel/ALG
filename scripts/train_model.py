@@ -10,6 +10,7 @@ warnings.filterwarnings("ignore")
 import pytorch_lightning as pl
 import torch
 from alg.model import ResNetClassifier
+from alg.dataloader import ALGDataModule
 
 def parse_args():
     parser = ArgumentParser()
@@ -74,7 +75,7 @@ def parse_args():
         "-s", "--save_path", help="""Path to save model trained model checkpoint."""
     )
     parser.add_argument(
-        "-g", "--gpus", help="""Enables GPU acceleration.""", type=int, default=0
+        "-g", "--gpus", help="""Enables GPU acceleration.""", type=int, default=1
     )
     return parser.parse_args()
 
@@ -117,6 +118,20 @@ if __name__ == "__main__":
         "callbacks": [checkpoint_callback],
         "precision": 16 if args.mixed_precision else 32,
     }
+
+    datamodule = ALGDataModule(
+        root = args["input"],
+        img_folder="images",
+        mask_folder="labels",
+        train_transforms=train_aug,
+        batch_size=args["batch"], 
+        num_workers=args["workers"],
+        val_percentage=args["val"],
+        img_ext=args["image_ext"],
+        mask_ext=args["mask_ext"]
+    )
+
+
     trainer = pl.Trainer(**trainer_args)
 
     trainer.fit(model)
