@@ -35,7 +35,7 @@ class ALGDataset(VisionDataset):
                  img_folder : str = "images", label_folder = "labels",
                  num_classes : int = 3, img_ext = ".tif", label_ext=".tif",
                  clean_values : tuple = (0, 127),
-                 threshold : float = 0.6
+                 threshold : float = 0.25
                  ) -> None:
         super().__init__(root, transforms, transform, target_transform)
 
@@ -61,18 +61,19 @@ class ALGDataset(VisionDataset):
                 idx = idx.tolist()
             
             fname = self.img_list[idx]
+
+            # image loading
             img_name = self.img_dir / (fname + self.img_ext)
-            label_name = self.label_dir / (fname + self.label_ext)
-
             img = load_image(img_name)
+            if self.transforms is not None:
+                transformed = self.transforms(image=img)
+                img = transformed["image"]
 
+            # Label Loading
+            label_name = self.label_dir / (fname + self.label_ext)
             label = load_label(label_name)
             label = self._clean_mask(mask=label)
-
-            if self.transforms is not None:
-                transformed = self.transforms(image=img, mask=label)
-                label = transformed["mask"]
-                img = transformed["image"]
+            label = self._convert_label(label)
             
             return img, label
     
@@ -84,6 +85,10 @@ class ALGDataset(VisionDataset):
         mask[(mask > cl1) & (mask <= cl2)] = 127
         mask[mask > cl2] = 255
         return mask
+
+    def _convert_label(self, label : np.ndarray) -> np.ndarray:
+        return 1 if ((np.count_nonzero(label == 255) / label.size) > self.threshold) else 0
+
 
 class ALGDataModule(pl.LightningDataModule):
     """
@@ -113,7 +118,8 @@ class ALGDataModule(pl.LightningDataModule):
             Preparing data splits
         """
         self.default_dataset = ALGDataset(self.root, self.train_transforms, img_folder=self.img_folder, mask_folder=self.mask_folder,
-                                            img_ext=self.img_ext, mask_ext=self.mask_ext)
+                                            img_ext=self.img_ext, mask_ext=self.mask_ext,
+                                            threshold=self.threshold)
         
         # Splitting the dataset
         dataset_len = len(self.default_dataset)
