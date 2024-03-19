@@ -7,9 +7,11 @@ from PIL import Image
 from torch.utils.data import random_split, DataLoader
 import numpy as np
 import cv2
-
+import albumentations as A
 import pytorch_lightning as pl
+
 IMG_EXT=set(['.png', '.jpg', '.jpeg', '.gif', '.tif'])
+
 def _check_path(path) -> str:
     """
         Function to convert path object to string, if necessary
@@ -25,7 +27,7 @@ def load_image(fpath : str) -> np.ndarray:
     """
         Using PIL because OpenCV changes channel order!
     """
-    img2 = Image.open(fpath)
+    img2 = Image.open(fpath).convert('RGB')
     img2_np = np.array(img2)
     return img2_np
 
@@ -65,6 +67,7 @@ class ALGDataset(VisionDataset):
             # image loading
             img_name = self.img_dir / (fname + self.img_ext)
             img = load_image(img_name)
+
             if self.transforms is not None:
                 transformed = self.transforms(image=img)
                 img = transformed["image"]
@@ -95,20 +98,24 @@ class ALGDataModule(pl.LightningDataModule):
         Datamodule to split for training and validation
     """
 
-    def __init__(self, root : str, img_folder : str = "images", mask_folder : str = "masks",
+    def __init__(self, root : str, img_folder : str = "images", label_folder : str = "labels",
                  num_classes : int = 3, img_ext = ".tif", label_ext=".tif",
                  clean_values : tuple = (0, 127), threshold : float = 0.6,
-                 num_workers : int = 1, batch_size : int = 16) -> None:
+                 transforms : A.Compose = None, val_percentage : float = 0.2,
+                 num_workers : int = 4, batch_size : int = 16) -> None:
         super().__init__()
         self.root = root
         self.img_folder = img_folder
         self.img_ext = img_ext
-        self.mask_folder = mask_folder
-        self.mask_ext = label_ext
+        self.label_folder = label_folder
+        self.label_ext = label_ext
 
         self.num_classes = num_classes
         self.clean_values = clean_values
         self.threshold = threshold
+
+        self.transforms = transforms
+        self.val_percentage = val_percentage
         
         self.num_workers = num_workers
         self.batch_size = batch_size
@@ -117,8 +124,8 @@ class ALGDataModule(pl.LightningDataModule):
         """
             Preparing data splits
         """
-        self.default_dataset = ALGDataset(self.root, self.train_transforms, img_folder=self.img_folder, mask_folder=self.mask_folder,
-                                            img_ext=self.img_ext, mask_ext=self.mask_ext,
+        self.default_dataset = ALGDataset(self.root, self.transforms, img_folder=self.img_folder, label_folder=self.label_folder,
+                                            img_ext=self.img_ext, label_ext=self.label_ext,
                                             threshold=self.threshold)
         
         # Splitting the dataset
@@ -130,13 +137,13 @@ class ALGDataModule(pl.LightningDataModule):
         self.train_dataset, self.val_dataset = random_split(self.default_dataset, [train_part, val_part])
 
     # Dataloaders:
-    def train_dataloader(self):
+    def train_dataloader(self) -> DataLoader:
         dl = DataLoader(self.train_dataset, batch_size=self.batch_size, num_workers=self.num_workers,
         pin_memory=True
         )
         return dl
     
-    def val_dataloader(self):
+    def val_dataloader(self) -> DataLoader:
         dl = DataLoader(self.val_dataset, batch_size=self.batch_size, num_workers=self.num_workers,
         pin_memory=True
         )

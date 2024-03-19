@@ -2,17 +2,23 @@
 # lightning Changelog: https://lightning.ai/docs/pytorch/stable/upgrade/from_1_7.html
 # tutorial: https://lightning.ai/docs/pytorch/stable/notebooks/course_UvA-DL/04-inception-resnet-densenet.html
 import warnings
+import os.path
 from argparse import ArgumentParser
-from pathlib import Path
 
 warnings.filterwarnings("ignore")
 
-import pytorch_lightning as pl
 import torch
+import pytorch_lightning as pl
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
+from pytorch_lightning import loggers as pl_loggers
+
 from alg.model import ResNetClassifier
 from alg.dataloader import ALGDataModule
 
-def parse_args():
+def parse_args(defdir : str):
+    datadir = os.path.join(defdir, 'data')
+    resdir = os.path.join(defdir, 'results')
     parser = ArgumentParser()
     # Required arguments
     parser.add_argument(
@@ -22,22 +28,11 @@ def parse_args():
         default=18
     )
     parser.add_argument(
-        "num_classes", help="""Number of classes to be learned.""", type=int, default=3,
+        "num_classes", help="""Number of classes to be learned.""", type=int, default=2,
     )
     parser.add_argument("num_epochs", help="""Number of Epochs to Run.""", type=int, default=300)
     parser.add_argument(
-        "train_set", help="""Path to training data folder.""", type=Path
-    )
-    parser.add_argument("val_set", help="""Path to validation set folder.""", type=Path)
-    # Optional arguments
-    parser.add_argument(
-        "-amp",
-        "--mixed_precision",
-        help="""Use mixed precision during training. Defaults to False.""",
-        action="store_true",
-    )
-    parser.add_argument(
-        "-ts", "--test_set", help="""Optional test set path.""", type=Path
+        "datadir", help="""Path to root data folder.""", type=str, default=datadir
     )
     parser.add_argument(
         "-o",
@@ -72,30 +67,67 @@ def parse_args():
         action="store_true",
     )
     parser.add_argument(
-        "-s", "--save_path", help="""Path to save model trained model checkpoint."""
+        "-s", "--save_path", help="""Path to save model trained model checkpoint.""", default=resdir
     )
     parser.add_argument(
         "-g", "--gpus", help="""Enables GPU acceleration.""", type=int, default=1
     )
     return parser.parse_args()
 
-
 if __name__ == "__main__":
-    args = parse_args()
+    basedir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    args = parse_args(basedir)
 
     # # Instantiate Model
     model = ResNetClassifier(
         num_classes=args.num_classes,
         resnet_version=args.model,
-        train_path=args.train_set,
-        val_path=args.val_set,
-        test_path=args.test_set,
         optimizer=args.optimizer,
         lr=args.learning_rate,
         batch_size=args.batch_size,
         transfer=args.transfer,
         tune_fc_only=args.tune_fc_only,
     )
+
+    # Set up Datamodule - with augmentations
+    p = 0.5
+    mean = [0.485, 0.456, 0.406]
+    std = [0.229, 0.224, 0.225]
+    augmentations = A.Compose([
+        A.OneOf([
+            A.VerticalFlip(p=p),
+            A.Rotate(limit=179, p=p),
+            A.HorizontalFlip(p=p)
+        ], p=p),
+        # Color Transforms
+        A.OneOf([ 
+            # A.CLAHE(),
+            A.RandomBrightnessContrast(p=p),
+            A.RandomGamma(p=p),
+            A.HueSaturationValue(p=p),
+            A.GaussNoise(p=p)
+        ], p=p),
+        # Elastic Transforms
+        A.OneOf([
+            A.ElasticTransform(p=p),
+            A.GridDistortion(p=p),
+            A.OpticalDistortion(p=p),
+        ], p=p),
+        A.Normalize(mean=mean, std=std),
+        ToTensorV2()        # 
+    ])
+    datamodule = ALGDataModule(
+        root = args.datadir,
+        img_folder="images",
+        label_folder="labels",
+        transforms=augmentations,
+        batch_size=16, 
+        num_workers=4,
+        val_percentage=0.2,
+        img_ext=".tif",
+        label_ext=".tif"
+    )
+
 
     save_path = args.save_path if args.save_path is not None else "./models"
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
@@ -107,34 +139,21 @@ if __name__ == "__main__":
         save_last=True,
     )
 
-    stopping_callback = pl.callbacks.EarlyStopping()
+    stopping_callback = pl.callbacks.EarlyStopping(monitor="val_acc")
 
     # Instantiate lightning trainer and train model
     trainer_args = {
         "accelerator": "gpu" if args.gpus else None,
-        "devices": [1],
+        "devices": [0],
         "strategy": "dp" if args.gpus > 1 else None,
         "max_epochs": args.num_epochs,
         "callbacks": [checkpoint_callback],
-        "precision": 16 if args.mixed_precision else 32,
+        "precision": 32,
+        "logger": pl_loggers.TensorBoardLogger(save_dir="lightning_logs/")
     }
-
-    datamodule = ALGDataModule(
-        root = args["input"],
-        img_folder="images",
-        mask_folder="labels",
-        train_transforms=train_aug,
-        batch_size=args["batch"], 
-        num_workers=args["workers"],
-        val_percentage=args["val"],
-        img_ext=args["image_ext"],
-        mask_ext=args["mask_ext"]
-    )
-
-
     trainer = pl.Trainer(**trainer_args)
 
-    trainer.fit(model)
+    trainer.fit(model, datamodule=datamodule)
 
     if args.test_set:
         trainer.test(model)

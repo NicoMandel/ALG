@@ -1,6 +1,9 @@
 # tmp file at any depth
 **/.tmp/
 
+**/.models/
+**/lightning_logs/
+
 # vscode files at any depth
 **/.vscode/
 
