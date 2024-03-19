@@ -9,6 +9,8 @@ import numpy as np
 import cv2
 import albumentations as A
 import pytorch_lightning as pl
+import torch.multiprocessing
+torch.multiprocessing.set_sharing_strategy('file_system')
 
 IMG_EXT=set(['.png', '.jpg', '.jpeg', '.gif', '.tif'])
 
@@ -86,11 +88,11 @@ class ALGDataset(VisionDataset):
         """
         cl1, cl2 = self.clean_values
         mask[(mask > cl1) & (mask <= cl2)] = 127
-        mask[mask > cl2] = 255
+        mask[(mask > cl2) & (mask < 255)] = 127
         return mask
 
     def _convert_label(self, label : np.ndarray) -> np.ndarray:
-        return 1 if ((np.count_nonzero(label == 255) / label.size) > self.threshold) else 0
+        return 1 if ((np.count_nonzero(label == 0) / label.size) > self.threshold) else 0
 
 
 class ALGDataModule(pl.LightningDataModule):
@@ -139,12 +141,12 @@ class ALGDataModule(pl.LightningDataModule):
     # Dataloaders:
     def train_dataloader(self) -> DataLoader:
         dl = DataLoader(self.train_dataset, batch_size=self.batch_size, num_workers=self.num_workers,
-        pin_memory=True
+        # pin_memory=True
         )
         return dl
     
     def val_dataloader(self) -> DataLoader:
         dl = DataLoader(self.val_dataset, batch_size=self.batch_size, num_workers=self.num_workers,
-        pin_memory=True
+        # pin_memory=True
         )
         return dl

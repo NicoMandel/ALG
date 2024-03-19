@@ -18,7 +18,7 @@ from alg.dataloader import ALGDataModule
 
 def parse_args(defdir : str):
     datadir = os.path.join(defdir, 'data')
-    resdir = os.path.join(defdir, 'results')
+    resdir = os.path.join(defdir, 'lightning_logs')
     parser = ArgumentParser()
     # Required arguments
     parser.add_argument(
@@ -52,7 +52,10 @@ def parse_args(defdir : str):
         "--batch_size",
         help="""Manually determine batch size. Defaults to 16.""",
         type=int,
-        default=16,
+        default=64,
+    )
+    parser.add_argument(
+        "-ts", "--test_set", help="""Optional test set path.""", type=str
     )
     parser.add_argument(
         "-tr",
@@ -121,8 +124,9 @@ if __name__ == "__main__":
         img_folder="images",
         label_folder="labels",
         transforms=augmentations,
-        batch_size=16, 
+        batch_size=args.batch_size, 
         num_workers=4,
+        threshold=0.75,
         val_percentage=0.2,
         img_ext=".tif",
         label_ext=".tif"
