@@ -52,7 +52,7 @@ def parse_args(defdir : str):
         "--batch_size",
         help="""Manually determine batch size. Defaults to 16.""",
         type=int,
-        default=64,
+        default=16,
     )
     parser.add_argument(
         "-ts", "--test_set", help="""Optional test set path.""", type=str
@@ -133,10 +133,10 @@ if __name__ == "__main__":
     )
 
 
-    save_path = args.save_path if args.save_path is not None else "./models"
+    save_path = args.save_path if args.save_path is not None else "models"
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
         dirpath=save_path,
-        filename="resnet-model-{epoch}-{val_loss:.2f}-{val_acc:0.2f}",
+        filename="resnet{args.model}-{epoch}-{val_acc:0.2f}",
         monitor="val_loss",
         save_top_k=3,
         mode="min",
@@ -153,7 +153,7 @@ if __name__ == "__main__":
         "max_epochs": args.num_epochs,
         "callbacks": [checkpoint_callback],
         "precision": 32,
-        "logger": pl_loggers.TensorBoardLogger(save_dir="lightning_logs/")
+        "logger": pl_loggers.TensorBoardLogger(version="resnet{args.model}")
     }
     trainer = pl.Trainer(**trainer_args)
 
