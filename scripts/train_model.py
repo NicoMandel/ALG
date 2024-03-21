@@ -81,6 +81,8 @@ if __name__ == "__main__":
     basedir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
     args = parse_args(basedir)
 
+    logdir = os.path.join(basedir, 'lightning_logs')
+
     # # Instantiate Model
     model = ResNetClassifier(
         num_classes=args.num_classes,
@@ -132,13 +134,18 @@ if __name__ == "__main__":
         label_ext=".tif"
     )
 
-
+    mdl_config = "-"
+    if args.transfer:
+        mdl_config += "transfer-"
+    if args.tune_fc_only:
+        mdl_config += "finetune-"
+    
     save_path = args.save_path if args.save_path is not None else "models"
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
         dirpath=save_path,
-        filename="resnet{args.model}-{epoch}-{val_acc:0.2f}",
-        monitor="val_loss",
-        save_top_k=3,
+        filename="resnet{args.model}{mdl_config}{epoch}-{val_acc:0.2f}",
+        monitor="val_acc",
+        save_top_k=2,
         mode="min",
         save_last=True,
     )
@@ -153,7 +160,7 @@ if __name__ == "__main__":
         "max_epochs": args.num_epochs,
         "callbacks": [checkpoint_callback],
         "precision": 32,
-        "logger": pl_loggers.TensorBoardLogger(version="resnet{args.model}")
+        "logger": pl_loggers.TensorBoardLogger(save_dir=logdir, name=f"resnet{args.model}{mdl_config}")
     }
     trainer = pl.Trainer(**trainer_args)
 
