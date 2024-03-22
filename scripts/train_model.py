@@ -103,7 +103,7 @@ if __name__ == "__main__":
             A.VerticalFlip(p=p),
             A.Rotate(limit=179, p=p),
             A.HorizontalFlip(p=p)
-        ], p=p),
+        ], p=1),
         # Color Transforms
         A.OneOf([ 
             # A.CLAHE(),
@@ -111,13 +111,13 @@ if __name__ == "__main__":
             A.RandomGamma(p=p),
             A.HueSaturationValue(p=p),
             A.GaussNoise(p=p)
-        ], p=p),
+        ], p=1),
         # Elastic Transforms
         A.OneOf([
             A.ElasticTransform(p=p),
             A.GridDistortion(p=p),
             A.OpticalDistortion(p=p),
-        ], p=p),
+        ], p=1),
         A.Normalize(mean=mean, std=std),
         ToTensorV2()        # 
     ])
@@ -150,7 +150,7 @@ if __name__ == "__main__":
         save_last=True,
     )
 
-    stopping_callback = pl.callbacks.EarlyStopping(monitor="val_acc")
+    stopping_callback = pl.callbacks.EarlyStopping(monitor="val_acc", mode="max",patience=20)
 
     # Instantiate lightning trainer and train model
     trainer_args = {
@@ -158,7 +158,7 @@ if __name__ == "__main__":
         "devices": [0],
         "strategy": "dp" if args.gpus > 1 else None,
         "max_epochs": args.num_epochs,
-        "callbacks": [checkpoint_callback],
+        "callbacks": [checkpoint_callback, stopping_callback],
         "precision": 32,
         "logger": pl_loggers.TensorBoardLogger(save_dir=logdir, name=f"resnet{args.model}{mdl_config}")
     }
