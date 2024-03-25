@@ -134,23 +134,23 @@ if __name__ == "__main__":
         label_ext=".tif"
     )
 
-    mdl_config = "-"
+    mdl_config = ""
     if args.transfer:
-        mdl_config += "transfer-"
+        mdl_config += "-transfer"
     if args.tune_fc_only:
-        mdl_config += "finetune-"
-    
+        mdl_config += "-finetune"
+    fn = "resnet{}-{}".format(args.model, mdl_config)
     save_path = args.save_path if args.save_path is not None else "models"
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
         dirpath=save_path,
-        filename="resnet{args.model}{mdl_config}{epoch}-{val_acc:0.2f}",
+        filename=fn+"-{epoch}-{val_acc:0.2f}",
         monitor="val_acc",
         save_top_k=2,
-        mode="min",
+        mode="max",
         save_last=True,
     )
 
-    stopping_callback = pl.callbacks.EarlyStopping(monitor="val_acc", mode="max",patience=20)
+    stopping_callback = pl.callbacks.EarlyStopping(monitor="val_acc", mode="max", patience=50)
 
     # Instantiate lightning trainer and train model
     trainer_args = {
@@ -160,7 +160,7 @@ if __name__ == "__main__":
         "max_epochs": args.num_epochs,
         "callbacks": [checkpoint_callback, stopping_callback],
         "precision": 32,
-        "logger": pl_loggers.TensorBoardLogger(save_dir=logdir, name=f"resnet{args.model}{mdl_config}")
+        "logger": pl_loggers.TensorBoardLogger(save_dir=logdir, name=fn)
     }
     trainer = pl.Trainer(**trainer_args)
 
