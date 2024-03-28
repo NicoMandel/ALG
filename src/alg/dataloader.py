@@ -68,7 +68,7 @@ class ALGDataset(VisionDataset):
 
             # image loading
             img_name = self.img_dir / (fname + self.img_ext)
-            # img = load_image(img_name)
+            img = load_image(img_name)
 
             if self.transforms is not None:
                 transformed = self.transforms(image=img)
@@ -76,14 +76,12 @@ class ALGDataset(VisionDataset):
 
             # Label Loading
             label_name = self.label_dir / (fname + self.label_ext)
-            # label = load_label(label_name)
-            
-            # if threshold is None - load as mask
+            label = load_label(label_name)
             if self.threshold is not None:
                 label = self._clean_mask(mask=label)
                 label = self._convert_label(label)
-                
-            return img_name, label_name
+            
+            return img, label
     
     def _clean_mask(self, mask : np.ndarray) -> np.ndarray:
         """
