@@ -39,7 +39,7 @@ class ALGDataset(VisionDataset):
                  img_folder : str = "images", label_folder = "labels",
                  num_classes : int = 3, img_ext = ".tif", label_ext=".tif",
                  clean_values : tuple = (0, 127),
-                 threshold : float = 0.25
+                 threshold : float = None
                  ) -> None:
         super().__init__(root, transforms, transform, target_transform)
 
@@ -68,7 +68,7 @@ class ALGDataset(VisionDataset):
 
             # image loading
             img_name = self.img_dir / (fname + self.img_ext)
-            img = load_image(img_name)
+            # img = load_image(img_name)
 
             if self.transforms is not None:
                 transformed = self.transforms(image=img)
@@ -76,11 +76,14 @@ class ALGDataset(VisionDataset):
 
             # Label Loading
             label_name = self.label_dir / (fname + self.label_ext)
-            label = load_label(label_name)
-            label = self._clean_mask(mask=label)
-            label = self._convert_label(label)
+            # label = load_label(label_name)
             
-            return img, label
+            # if threshold is None - load as mask
+            if self.threshold is not None:
+                label = self._clean_mask(mask=label)
+                label = self._convert_label(label)
+                
+            return img_name, label_name
     
     def _clean_mask(self, mask : np.ndarray) -> np.ndarray:
         """

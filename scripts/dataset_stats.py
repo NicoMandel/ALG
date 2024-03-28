@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
 
-from alg.dataloader import ALGDataset
+from alg.dataloader import ALGDataset, load_image, load_label
 from alg.utils import load_config
 
 def count_histograms(alg_ds):
@@ -40,17 +40,32 @@ def test_mask_loading(alg_ds):
         # plt.title(label)
         plt.show()
 
+def clean_images(alg_ds):
+    import os
+    ctr = 0
+    for i, (img_name, mask_name) in enumerate(alg_ds):
+        img = load_image(img_name)
+        if np.all(img == 255):
+            ctr += 1
+            print(os.path.abspath(img_name))
+            print(os.path.abspath(mask_name))
+            os.remove(os.path.abspath(img_name))
+            os.remove(os.path.abspath(mask_name))
+            
+            # print(alg_ds.img_list[i])
+    print("Length of Dataset: {}. Pure white images: {}, {:.2f}%".format(len(alg_ds), ctr, ctr / len(alg_ds) * 100))
 
 if __name__=="__main__":
     basedir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 
-    datadir = os.path.join(basedir, 'data')
-    alg_ds = ALGDataset(datadir, threshold=0.75)
+    datadir = os.path.join(basedir, 'data', 'test')
+    alg_ds = ALGDataset(datadir, threshold=None)
 
     confdir = os.path.join(basedir, 'config')
     conff = os.path.join(confdir, 'config.yml')
     cfg = load_config(conff)
     
     print(len(alg_ds))
-    # count_histograms(alg_ds)
+    clean_images(alg_ds)
+    count_histograms(alg_ds)
     test_label_loading(alg_ds)
