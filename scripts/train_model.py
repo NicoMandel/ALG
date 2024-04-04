@@ -12,6 +12,7 @@ import pytorch_lightning as pl
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from pytorch_lightning import loggers as pl_loggers
+from torchsummary import summary
 
 from alg.model import ResNetClassifier
 from alg.dataloader import ALGDataModule
@@ -163,8 +164,19 @@ if __name__ == "__main__":
         "logger": pl_loggers.TensorBoardLogger(save_dir=logdir, name=fn)
     }
     trainer = pl.Trainer(**trainer_args)
+    trainer.logger._log_graph = True
+    trainer.logger._default_hp_metric = None    # none needed
 
-    trainer.fit(model, datamodule=datamodule)
+    # print summary
+    m2 = model.resnet_model.to(device=0)
+    summary(m2, model.example_input_array.shape[1:])
+    l= list(model.resnet_model.children())[-1]
+    # appears to be 512 - can access through the l.in_features component Change the decoder to be that.
+    # removing the last layer: https://stackoverflow.com/questions/52548174/how-to-remove-the-last-fc-layer-from-a-resnet-model-in-pytorch
+    #  https://discuss.pytorch.org/t/removing-layers-from-resnet-pretrained-model/116166
+    # https://discuss.pytorch.org/t/how-to-delete-layer-in-pretrained-model/17648/5
+
+    trainer.fit(model.resnet, datamodule=datamodule)
 
     if args.test_set:
         trainer.test(model)

@@ -1,4 +1,5 @@
 import os.path
+from tqdm import tqdm
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
@@ -53,6 +54,6 @@ if __name__=="__main__":
     cfg = load_config(conff)
     
     print(len(alg_ds))
-    # count_histograms(alg_ds)
+    count_histograms(alg_ds)
     # test_label_loading(alg_ds)
-    test_mask_loading(alg_ds)
+    # test_mask_loading(alg_ds)

@@ -1,4 +1,4 @@
-
+import torch
 import torch.nn as nn
 import torchvision.models as models
 from torch.optim import SGD, Adam
@@ -54,6 +54,9 @@ class ResNetClassifier(pl.LightningModule):
             for child in list(self.resnet_model.children())[:-1]:
                 for param in child.parameters():
                     param.requires_grad = False
+
+        # for visulising the model, an example input array is needed
+        self.example_input_array = torch.zeros(2,3,256,256)
 
     def forward(self, X):
         return self.resnet_model(X)
