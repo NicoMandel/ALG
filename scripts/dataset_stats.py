@@ -27,9 +27,9 @@ def count_histograms(alg_ds):
     plt.show()
 
 def test_label_loading(alg_ds):
-    for img, label in alg_ds:
+    for i, (img, label) in enumerate(alg_ds):
         plt.imshow(img)
-        plt.title(label)
+        plt.title(f"{alg_ds.img_list[i]}: {label}")
         plt.show()
 
 def test_mask_loading(alg_ds):
@@ -46,14 +46,22 @@ def test_mask_loading(alg_ds):
 if __name__=="__main__":
     basedir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 
-    datadir = os.path.join(basedir, 'data', 'test')
+    datadir = os.path.join(basedir, 'data')
     alg_ds = ALGDataset(datadir, threshold=None)
+
+    testdir = os.path.join(datadir, 'test')
+    alg_test_ds = ALGDataset(
+        root=testdir,
+        label_ext=".txt",
+        threshold=0.5
+    )
+    test_label_loading(alg_test_ds)
 
     confdir = os.path.join(basedir, 'config')
     conff = os.path.join(confdir, 'config.yml')
     cfg = load_config(conff)
     
     print(len(alg_ds))
-    count_histograms(alg_ds)
+    # count_histograms(alg_ds)
     # test_label_loading(alg_ds)
-    # test_mask_loading(alg_ds)
+    test_mask_loading(alg_ds)

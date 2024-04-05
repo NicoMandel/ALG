@@ -129,7 +129,7 @@ if __name__ == "__main__":
         transforms=augmentations,
         batch_size=args.batch_size, 
         num_workers=4,
-        threshold=0.75,
+        threshold=0.5,
         val_percentage=0.2,
         img_ext=".tif",
         label_ext=".tif"
@@ -168,15 +168,15 @@ if __name__ == "__main__":
     trainer.logger._default_hp_metric = None    # none needed
 
     # print summary
-    m2 = model.resnet_model.to(device=0)
-    summary(m2, model.example_input_array.shape[1:])
-    l= list(model.resnet_model.children())[-1]
+    # m2 = model.resnet_model.to(device=0)
+    # summary(m2, model.example_input_array.shape[1:])
+    # l= list(model.resnet_model.children())[-1]
     # appears to be 512 - can access through the l.in_features component Change the decoder to be that.
     # removing the last layer: https://stackoverflow.com/questions/52548174/how-to-remove-the-last-fc-layer-from-a-resnet-model-in-pytorch
     #  https://discuss.pytorch.org/t/removing-layers-from-resnet-pretrained-model/116166
     # https://discuss.pytorch.org/t/how-to-delete-layer-in-pretrained-model/17648/5
 
-    trainer.fit(model.resnet, datamodule=datamodule)
+    trainer.fit(model, datamodule=datamodule)
 
     if args.test_set:
         trainer.test(model)

@@ -28,10 +28,16 @@ def load_label(fpath : str) -> np.ndarray:
 def load_image(fpath : str) -> np.ndarray:
     """
         Using PIL because OpenCV changes channel order!
+        tif loaded as RGBA -> needs conaversion to RGb
     """
     img2 = Image.open(fpath).convert('RGB')
     img2_np = np.array(img2)
     return img2_np
+
+def load_txt(fpath : str) -> float:
+    with open(fpath, 'r') as f:
+        val = float(f.read().rstrip())
+    return val
 
 class ALGDataset(VisionDataset):
     
@@ -48,6 +54,14 @@ class ALGDataset(VisionDataset):
 
         self.img_ext = img_ext
         self.label_ext = label_ext
+        if label_ext.lower() in IMG_EXT:
+            self._isimg = True
+            self.label_load_fn = load_label
+        elif label_ext.lower() == ".txt":
+            self.label_load_fn = load_txt
+            self._isimg = False
+        else:
+            raise ValueError("Unknown Label Extension")
 
         self.threshold = threshold
 
@@ -74,11 +88,12 @@ class ALGDataset(VisionDataset):
 
             # Label Loading
             label_name = self.label_dir / (fname + self.label_ext)
-            label = load_label(label_name)
+            label = self.label_load_fn(label_name)
             if self.threshold is not None:
-                label = self._clean_mask(mask=label)
+                if self._isimg:
+                    label = self._clean_mask(mask=label)
                 label = self._convert_label(label)
-            
+
             return img, label
     
     def _clean_mask(self, mask : np.ndarray) -> np.ndarray:
@@ -88,9 +103,11 @@ class ALGDataset(VisionDataset):
         mask[(mask > 0) & (mask < 255)] = 127
         return mask
 
-    def _convert_label(self, label : np.ndarray) -> np.ndarray:
-        return 1 if ((np.count_nonzero(label == 0) / label.size) > self.threshold) else 0
-
+    def _convert_label(self, label : np.ndarray | float) -> np.ndarray:
+        if isinstance(label, np.ndarray):
+            return 1 if ((np.count_nonzero(label == 0) / label.size) > self.threshold) else 0
+        else:
+            return 1 if label > self.threshold else 0
 
 class ALGDataModule(pl.LightningDataModule):
     """
@@ -147,3 +164,4 @@ class ALGDataModule(pl.LightningDataModule):
         # pin_memory=True
         )
         return dl
+    
