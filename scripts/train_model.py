@@ -16,6 +16,7 @@ from torchsummary import summary
 
 from alg.model import ResNetClassifier
 from alg.dataloader import ALGDataModule
+from test_model import test_model
 
 def parse_args(defdir : str):
     datadir = os.path.join(defdir, 'data')
@@ -56,7 +57,10 @@ def parse_args(defdir : str):
         default=16,
     )
     parser.add_argument(
-        "-ts", "--test_set", help="""Optional test set path.""", type=str
+        "-ts", "--test_set", help="""Optional test set path.""", type=str, default=None
+    )
+    parser.add_argument(
+        "--threshold", help="""Threshold to use when to classify an image as ALG""", default=0.5, type=float
     )
     parser.add_argument(
         "-tr",
@@ -129,7 +133,7 @@ if __name__ == "__main__":
         transforms=augmentations,
         batch_size=args.batch_size, 
         num_workers=4,
-        threshold=0.5,
+        threshold=args.threshold,
         val_percentage=0.2,
         img_ext=".tif",
         label_ext=".tif"
@@ -178,10 +182,25 @@ if __name__ == "__main__":
 
     trainer.fit(model, datamodule=datamodule)
 
-    if args.test_set:
-        trainer.test(model)
+    # Getting the best model out
+    best_path = checkpoint_callback.best_model_path
+    print(f"Best model at: {best_path}")
+    best_model = ResNetClassifier.load_from_checkpoint(best_path)
+    if args.test_set is not None:
+        results = test_model(
+            best_path,
+            args.test_set,
+            threshold=args.threshold,
+            batch_size=args.batch_size,
+            logger=trainer.logger
+        )
+        # test_root = args["test_set"]
+        # test_ds = ALG
+        # test_dataloader = 
+        # trainer.test(model)
+    
     # Save trained model weights
-    torch.save(trainer.model.resnet_model.state_dict(), save_path + "/trained_model.pt")
+    # torch.save(best_model.state_dict(), save_path + "/trained_model.pt")
 
 
         

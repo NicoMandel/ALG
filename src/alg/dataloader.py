@@ -161,6 +161,7 @@ class ALGDataModule(pl.LightningDataModule):
     
     def val_dataloader(self) -> DataLoader:
         dl = DataLoader(self.val_dataset, batch_size=self.batch_size, num_workers=self.num_workers,
+                        drop_last=True
         # pin_memory=True
         )
         return dl

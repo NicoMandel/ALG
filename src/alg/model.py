@@ -57,6 +57,7 @@ class ResNetClassifier(pl.LightningModule):
 
         # for visulising the model, an example input array is needed
         self.example_input_array = torch.zeros(2,3,256,256)
+        self.save_hyperparameters()
 
     def forward(self, X):
         return self.resnet_model(X)
