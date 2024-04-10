@@ -44,7 +44,7 @@ class ALGDataset(VisionDataset):
     def __init__(self, root: str, transforms = None, transform = None, target_transform = None,
                  img_folder : str = "images", label_folder = "labels",
                  num_classes : int = 3, img_ext = ".tif", label_ext=".tif",
-                 threshold : float = None
+                 threshold : float = None, load_names : bool = False
                  ) -> None:
         super().__init__(root, transforms, transform, target_transform)
 
@@ -64,6 +64,7 @@ class ALGDataset(VisionDataset):
             raise ValueError("Unknown Label Extension")
 
         self.threshold = threshold
+        self.load_names = load_names
 
         # self.img_list = list(p.resolve().stem for p in self.img_dir.glob("**/*") if p.suffix in IMG_EXT)            # potentially replace by x.stem
         self.img_list = list([x.stem for x in self.img_dir.glob("*"+img_ext)])
@@ -88,6 +89,11 @@ class ALGDataset(VisionDataset):
 
             # Label Loading
             label_name = self.label_dir / (fname + self.label_ext)
+
+            # if loading names only - used for cleaning
+            if self.load_names:
+                return img_name, label_name
+
             label = self.label_load_fn(label_name)
             if self.threshold is not None:
                 if self._isimg:

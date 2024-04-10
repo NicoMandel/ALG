@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
 
-from alg.dataloader import ALGDataset
+from alg.dataloader import ALGDataset, load_image
 from alg.utils import load_config
 
 def count_histograms(alg_ds):
@@ -42,9 +42,33 @@ def test_mask_loading(alg_ds):
         # plt.savefig('someimg.png')
         plt.show()
 
+def clean_images(alg_ds, clean : bool = False, clean_value : int = 255):
+    import os
+    ctr = 0
+    for img_name, mask_name in tqdm(alg_ds):
+        img = load_image(img_name)
+        if np.all(img == clean_value):
+            ctr += 1
+            if clean:
+                os.remove(os.path.abspath(img_name))
+                os.remove(os.path.abspath(mask_name))
+            else:
+                print(os.path.abspath(img_name))
+                # print(os.path.abspath(mask_name)) 
+            # print(alg_ds.img_list[i])
+    print("Length of Dataset: {}. Pure {} images: {}, {:.2f}%".format(len(alg_ds), clean_value, ctr, ctr / len(alg_ds) * 100))
+
 
 if __name__=="__main__":
     basedir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
+
+    # Dataset Cleaning Block!
+    # datadir_site1 = "~/src/csu/data/ALG/sites/site1_McD"
+    # datadir_site2 = "~/src/csu/data/ALG/sites/site2_GC"
+    # datadir_site3 = "~/src/csu/data/ALG/sites/site3_Kuma"
+    datadir_site4 = "~/src/csu/data/ALG/sites/site4_TSR"
+    alg_ds = ALGDataset(datadir_site4, threshold=None,img_folder="input_images", label_folder="mask_images", load_names=True)
+    clean_images(alg_ds, clean=False, clean_value=0)
 
     datadir = os.path.join(basedir, 'data')
     alg_ds = ALGDataset(datadir, threshold=None)
