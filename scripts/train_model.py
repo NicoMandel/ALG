@@ -150,7 +150,7 @@ if __name__ == "__main__":
         dirpath=save_path,
         filename=fn+"-{epoch}-{val_acc:0.2f}",
         monitor="val_acc",
-        save_top_k=2,
+        save_top_k=1,
         mode="max",
         save_last=True,
     )

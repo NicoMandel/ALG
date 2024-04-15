@@ -6,6 +6,6 @@ for i in "${resnets[@]}"
 do
     for tr in "${trto[@]}"
     do
-        python "scripts/train_model.py" $i 2 200 data $tr 
+        echo "scripts/train_model.py" $i 2 200 data $tr 
     done 
 done
