@@ -30,7 +30,7 @@ class GenerateCallback(Callback):
             # plotting and adding to tensorboard
             imgs = torch.stack([input_imgs, reconst_imgs], dim=1).flatten(0, 1)
             grid = make_grid(imgs, nrow=2, normalize=True, range=(-1, 1))
-            trainer.logger.experiment.add_image("Reconstructions", grid, global_step = trainer.global_step)
+            trainer.logger.experiment.add_image(f"Reconstructions: {trainer.current_epoch}", grid, global_step = trainer.global_step)
 
 
 def compare_images(img1 : torch.Tensor, img2 : torch.Tensor) -> tuple:

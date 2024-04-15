@@ -88,7 +88,7 @@ class Autoencoder(pl.LightningModule):
 
         self.encoder = encoder_class(num_input_channels, c_hid, latent_dim)
         self.decoder = decoder_class(num_input_channels, c_hid, latent_dim)
-        self.example_input_array = torch.zeros(2, num_input_channels, width, height)
+        self.example_input_array = torch.zeros(1, num_input_channels, width, height)
         
         self.loss = nn.MSELoss(reduction="none")
 

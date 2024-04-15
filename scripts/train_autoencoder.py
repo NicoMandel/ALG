@@ -20,7 +20,7 @@ if __name__=="__main__":
 
     # model
     ae = Autoencoder()
-    name = str(ae)
+    name = str(ae) + "_cifar32"
 
     # Dataset
     # Transformations applied on each image => only make them a tensor
@@ -48,7 +48,8 @@ if __name__=="__main__":
         devices=[0],
         max_epochs=500,
         precision=32,
-        fast_dev_run=True,
+        logger=logger,
+        # fast_dev_run=True,
         callbacks=[
             ModelCheckpoint(save_weights_only=True, save_top_k=1),
             GenerateCallback(log_imgs, every_n_epochs=50),
