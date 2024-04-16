@@ -18,9 +18,9 @@ class GenerateCallback(Callback):
 
         # only reconstruct every n epochs -> to diminish tensorboard size
         self.every_n_epochs = every_n_epochs
-    
-    def on_train_epoch_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
-        if trainer.current_epoch % self.every_n_epochs == 0:
+        
+    def on_validation_epoch_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
+        if trainer.current_epoch + 1 % self.every_n_epochs == 0:
             input_imgs = self.input_imgs.to(pl_module.device)
             with torch.no_grad():
                 pl_module.eval()

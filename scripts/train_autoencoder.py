@@ -5,12 +5,15 @@ import torch
 import pytorch_lightning as pl
 from torchvision.datasets import CIFAR10
 from torchvision import transforms
-from torch.utils.data import DataLoader
 from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
+
 from alg.autoencoder import Autoencoder
 from alg.ae_utils import GenerateCallback
+from alg.ae_dataloader import ALGRAWDataModule
 
 if __name__=="__main__":
     basedir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -20,29 +23,27 @@ if __name__=="__main__":
 
     # model
     ae = Autoencoder()
-    name = str(ae) + "_cifar32"
+    name = str(ae) + "_alg32"
 
     # Dataset
     # Transformations applied on each image => only make them a tensor
-    transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
+    # transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
+    tfs = A.Compose([
+        A.RandomCrop(32,32),
+        A.Normalize((0.5,), (0.5,)),
+        ToTensorV2(always_apply=True)        
+    ])
+
+    datadir = os.path.join(basedir, 'data', 'raw')
+    train_datamod = ALGRAWDataModule(root=datadir, transforms=tfs, batch_size=128)
 
     # Loading the training dataset. We need to split it into a training and validation part
-    train_dataset = CIFAR10(root="~/data", train=True, transform=transform)
     pl.seed_everything(42)
-    train_set, val_set = torch.utils.data.random_split(train_dataset, [45000, 5000])
-
-    # Loading the test set
-    test_set = CIFAR10(root="~/data", train=False, transform=transform)
-
-    # We define a set of data loaders that we can use for various purposes later.
-    train_loader = DataLoader(train_set, batch_size=256, shuffle=True, drop_last=True, pin_memory=True, num_workers=4)
-    val_loader = DataLoader(val_set, batch_size=256, shuffle=False, drop_last=False, num_workers=4)
-    test_loader = DataLoader(test_set, batch_size=256, shuffle=False, drop_last=False, num_workers=4)
 
     # Logger
     logdir = os.path.join(basedir, 'lightning_logs', 'ae')
     logger = pl_loggers.TensorBoardLogger(save_dir=logdir, name=name)
-    log_imgs = torch.stack([train_dataset[i][0] for i in range(8)], dim=0)
+    log_imgs = torch.stack([train_datamod.default_dataset[i][0] for i in range(8)], dim=0)
     trainer = pl.Trainer(
         accelerator="gpu",
         devices=[0],
@@ -54,7 +55,8 @@ if __name__=="__main__":
             ModelCheckpoint(save_weights_only=True, save_top_k=1),
             GenerateCallback(log_imgs, every_n_epochs=50),
             LearningRateMonitor("epoch")
-        ]
+        ],
+        log_every_n_steps=2,
     )
 
     # trainer
@@ -62,8 +64,8 @@ if __name__=="__main__":
     trainer.logger._default_hp_metric = None
 
     # training
-    trainer.fit(ae, train_loader, val_loader)
+    trainer.fit(ae, train_datamod)
 
     # testing
-    val_result = trainer.test(ae, dataloaders=val_loader, verbose=False)
-    test_result = trainer.test(ae, dataloaders=test_loader, verbose=False)
+    # val_result = trainer.test(ae, dataloaders=val_loader, verbose=False)
+    # test_result = trainer.test(ae, dataloaders=test_loader, verbose=False)
