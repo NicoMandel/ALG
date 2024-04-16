@@ -35,7 +35,7 @@ if __name__=="__main__":
     ])
 
     datadir = os.path.join(basedir, 'data', 'raw')
-    train_datamod = ALGRAWDataModule(root=datadir, transforms=tfs, batch_size=128)
+    train_datamod = ALGRAWDataModule(root=datadir, transforms=tfs, batch_size=128, num_workers=12)
 
     # Loading the training dataset. We need to split it into a training and validation part
     pl.seed_everything(42)
