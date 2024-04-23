@@ -1,11 +1,20 @@
 import os.path
+import numpy as np
 from tqdm import tqdm
 import numpy as np
+import cv2
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
+from copy import deepcopy
+import torchvision.transforms as torchtfs
 
-from alg.dataloader import ALGDataset, load_image
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
+
+from alg.ae_dataloader import ALGRAWDataset, load_image
+from alg.dataloader import ALGDataset
 from alg.utils import load_config
+from alg.ae_utils import NormalizeInverse, InverseNormalization
 
 def count_histograms(alg_ds, ds_title = ""):
     # counting histograms
@@ -61,10 +70,57 @@ def clean_images(alg_ds, clean : bool = False, clean_value : int = 255):
             # print(alg_ds.img_list[i])
     print("Length of Dataset: {}. Pure {} images: {}, {:.2f}%".format(len(alg_ds), clean_value, ctr, ctr / len(alg_ds) * 100))
 
+def test_raw_dataset(basedir : str, save = False):
+    """
+        Function to test the raw dataset dataloading
+    """
+    np.random.seed(1)
+    datadir = os.path.join(basedir, 'data', 'raw')
+    tfs = A.Compose([
+        A.RandomCrop(32,32),
+    ])
+    # post_tfs_norm = A.Compose([
+    #     # A.Normalize((0.5,), (0.5,)),
+    #     ToTensorV2(always_apply=True)
+    # ])
+    post_tfs= A.Compose([
+        ToTensorV2(always_apply=True)
+    ])        
+    post_tf_norm = torchtfs.Normalize((0.5,) , (0.5,))
+            
+    raw_ds = ALGRAWDataset(datadir, transforms=tfs)
+    
+    unnormalize = NormalizeInverse((0.5,) , (0.5,))
+    fig, axs = plt.subplots(1,2)
+    for i, (img, label) in enumerate(raw_ds):
+        img = post_tfs(image=img)['image']
+        img_norm = deepcopy(img)
+        img = img.permute(1,2,0).int()
+
+        img_norm = post_tf_norm(img_norm.float())   # .float()
+        img_norm =img_norm.permute(1,2,0)   # .int()
+        img_norm = unnormalize(img_norm).int()
+        
+        # img_norm = cv2.cvtColor(img_norm, cv2.COLOR_BGR2RGB)
+        # img_norm = img_norm.astype(int)
+
+
+        axs[0].imshow(img)
+        axs[0].set_title("unnormalized")
+        axs[1].imshow(img_norm)
+        axs[1].set_title("normalized")
+        plt.suptitle(f"{raw_ds.img_list[i]}: {label}")
+        if not save:
+            plt.show()
+        else:
+            plt.savefig('someimg.png')
+
+
 
 if __name__=="__main__":
     basedir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 
+    test_raw_dataset(basedir, save=True)
     # Dataset Cleaning Block!
     dd_b = "~/src/csu/data/ALG/sites"
     ks = ["site1_McD", "site2_GC", "site3_Kuma", "site4_TSR"]
@@ -90,7 +146,8 @@ if __name__=="__main__":
         label_ext=".txt",
         threshold=0.5
     )
-    test_label_loading(alg_test_ds)
+    # test_label_loading(alg_test_ds)
+
 
     confdir = os.path.join(basedir, 'config')
     conff = os.path.join(confdir, 'config.yml')

@@ -1,6 +1,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torchvision.transforms as tfs
+import albumentations as A
+import numpy as np
 from torchvision.utils import make_grid
 from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks import Callback
@@ -20,7 +23,7 @@ class GenerateCallback(Callback):
         self.every_n_epochs = every_n_epochs
         
     def on_validation_epoch_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
-        if trainer.current_epoch + 1 % self.every_n_epochs == 0:
+        if trainer.current_epoch % self.every_n_epochs == 0:
             input_imgs = self.input_imgs.to(pl_module.device)
             with torch.no_grad():
                 pl_module.eval()
@@ -31,7 +34,6 @@ class GenerateCallback(Callback):
             imgs = torch.stack([input_imgs, reconst_imgs], dim=1).flatten(0, 1)
             grid = make_grid(imgs, nrow=2, normalize=True, range=(-1, 1))
             trainer.logger.experiment.add_image(f"Reconstructions: {trainer.current_epoch}", grid, global_step = trainer.global_step)
-
 
 def compare_images(img1 : torch.Tensor, img2 : torch.Tensor) -> tuple:
     """
@@ -49,3 +51,19 @@ def visualize_reconstruction(model : nn.Module, img : torch.Tensor):
         reconst_imgs = model(img.to(model.device))
     reconst_imgs = reconst_imgs.cpu()
     return compare_images(img, reconst_imgs)
+
+class NormalizeInverse(tfs.Normalize):
+    """
+        Inverse Normalization for use after transform application
+        https://discuss.pytorch.org/t/simple-way-to-inverse-transform-normalization/4821/8
+    """
+
+    def __init__(self, mean, std):                      # inplace=inplace
+        mean = torch.as_tensor(mean)
+        std = torch.as_tensor(std)
+        std_inv = 1 / (std + 1e-7)
+        mean_inv = -mean * std_inv
+        super().__init__(mean=mean_inv, std=std_inv)        # inplace=inplace
+
+    def __call__(self, tensor):
+        return super().__call__(tensor)
