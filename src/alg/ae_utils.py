@@ -2,8 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.transforms as tfs
-import albumentations as A
-import numpy as np
 from torchvision.utils import make_grid
 from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks import Callback

@@ -6,7 +6,6 @@ from pathlib import Path
 from PIL import Image
 from torch.utils.data import random_split, DataLoader
 import numpy as np
-import albumentations as A
 import pytorch_lightning as pl
 import torch.multiprocessing
 torch.multiprocessing.set_sharing_strategy('file_system')
@@ -26,12 +25,11 @@ def load_image(fpath : str) -> np.ndarray:
         According to: https://albumentations.ai/docs/getting_started/image_augmentation/
     """
     img2 = Image.open(fpath)
-    img2_np = np.array(img2)
-    return img2_np
+    return img2
 
 class ALGRAWDataset(VisionDataset):
     
-    def __init__(self, root: str, transforms = None, transform = None, target_transform = None,
+    def __init__(self, root: str, transforms = None, transform = None, target_transform = None, 
                  img_folder : str = "images"
                  ) -> None:
         super().__init__(root, transforms, transform, target_transform)
@@ -43,7 +41,7 @@ class ALGRAWDataset(VisionDataset):
             nf = self.img_dir.glob("*" + ext)
             fns = list([fn.name for fn in nf])
             self.img_list.extend(fns)
-
+        
     def __len__(self) -> int:
         return len(self.img_list)
     
@@ -59,8 +57,7 @@ class ALGRAWDataset(VisionDataset):
             img = load_image(img_name)
 
             if self.transforms is not None:
-                transformed = self.transforms(image=img)
-                img = transformed["image"]
+                img = self.transforms(img)
 
             return img, 1
     
@@ -70,7 +67,7 @@ class ALGRAWDataModule(pl.LightningDataModule):
     """
 
     def __init__(self, root : str, img_folder : str = "images",
-                 transforms : A.Compose = None, val_percentage : float = 0.2,
+                 transforms  = None, val_percentage : float = 0.2,
                  num_workers : int = 4, batch_size : int = 16) -> None:
         super().__init__()
         self.root = root

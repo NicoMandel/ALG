@@ -14,7 +14,7 @@ from albumentations.pytorch import ToTensorV2
 from alg.ae_dataloader import ALGRAWDataset, load_image
 from alg.dataloader import ALGDataset
 from alg.utils import load_config
-from alg.ae_utils import NormalizeInverse, InverseNormalization
+from alg.ae_utils import NormalizeInverse
 
 def count_histograms(alg_ds, ds_title = ""):
     # counting histograms
@@ -78,14 +78,12 @@ def test_raw_dataset(basedir : str, save = False):
     datadir = os.path.join(basedir, 'data', 'raw')
     tfs = A.Compose([
         A.RandomCrop(32,32),
+        ToTensorV2(always_apply=True)
     ])
     # post_tfs_norm = A.Compose([
     #     # A.Normalize((0.5,), (0.5,)),
     #     ToTensorV2(always_apply=True)
     # ])
-    post_tfs= A.Compose([
-        ToTensorV2(always_apply=True)
-    ])        
     post_tf_norm = torchtfs.Normalize((0.5,) , (0.5,))
             
     raw_ds = ALGRAWDataset(datadir, transforms=tfs)
@@ -93,7 +91,6 @@ def test_raw_dataset(basedir : str, save = False):
     unnormalize = NormalizeInverse((0.5,) , (0.5,))
     fig, axs = plt.subplots(1,2)
     for i, (img, label) in enumerate(raw_ds):
-        img = post_tfs(image=img)['image']
         img_norm = deepcopy(img)
         img = img.permute(1,2,0).int()
 

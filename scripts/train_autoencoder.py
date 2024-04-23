@@ -3,17 +3,15 @@ import os.path
 import torch
 
 import pytorch_lightning as pl
-from torchvision.datasets import CIFAR10
-from torchvision import transforms
+from torchvision import transforms as torch_tfs
 from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
-
-import albumentations as A
-from albumentations.pytorch import ToTensorV2
 
 from alg.autoencoder import Autoencoder
 from alg.ae_utils import GenerateCallback
 from alg.ae_dataloader import ALGRAWDataModule
+
+# using torchvision only transforms: https://pytorch.org/vision/0.13/transforms.html 
 
 if __name__=="__main__":
     basedir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -28,29 +26,32 @@ if __name__=="__main__":
     # Dataset
     # Transformations applied on each image => only make them a tensor
     # transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
-    tfs = A.Compose([
-        A.RandomCrop(32,32),
-        A.Normalize((0.5,), (0.5,)),
-        ToTensorV2(always_apply=True)        
+    mean = (0.5,)
+    std = (0.5,)
+    tfs = torch_tfs.Compose([
+        torch_tfs.RandomCrop(32,32),
+        torch_tfs.PILToTensor(),
+        torch_tfs.ConvertImageDtype(torch.float),
+        torch_tfs.Normalize(mean, std)        
     ])
-
+  
     datadir = os.path.join(basedir, 'data', 'raw')
-    train_datamod = ALGRAWDataModule(root=datadir, transforms=tfs, batch_size=128, num_workers=12)
+    train_datamod = ALGRAWDataModule(root=datadir, transforms=tfs, batch_size=128, num_workers=20)
 
     # Loading the training dataset. We need to split it into a training and validation part
-    pl.seed_everything(42)
+    # pl.seed_everything(42)
 
     # Logger
     logdir = os.path.join(basedir, 'lightning_logs', 'ae')
     logger = pl_loggers.TensorBoardLogger(save_dir=logdir, name=name)
     log_imgs = torch.stack([train_datamod.default_dataset[i][0] for i in range(8)], dim=0)
+
     trainer = pl.Trainer(
         accelerator="gpu",
         devices=[0],
-        max_epochs=500,
+        max_epochs=1000,
         precision=32,
         logger=logger,
-        # fast_dev_run=True,
         callbacks=[
             ModelCheckpoint(save_weights_only=True, save_top_k=1),
             GenerateCallback(log_imgs, every_n_epochs=50),
