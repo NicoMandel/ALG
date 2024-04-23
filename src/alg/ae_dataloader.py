@@ -23,10 +23,9 @@ def _check_path(path) -> str:
 
 def load_image(fpath : str) -> np.ndarray:
     """
-        Using PIL because OpenCV changes channel order!
-        tif loaded as RGBA -> needs conaversion to RGb
+        According to: https://albumentations.ai/docs/getting_started/image_augmentation/
     """
-    img2 = Image.open(fpath).convert('RGB')
+    img2 = Image.open(fpath)
     img2_np = np.array(img2)
     return img2_np
 

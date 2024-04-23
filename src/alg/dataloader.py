@@ -23,9 +23,9 @@ def _check_path(path) -> str:
     return path
 
 def load_label(fpath : str) -> np.ndarray:
-    return load_image(fpath)
+    return load_tif(fpath)
 
-def load_image(fpath : str) -> np.ndarray:
+def load_tif(fpath : str) -> np.ndarray:
     """
         Using PIL because OpenCV changes channel order!
         tif loaded as RGBA -> needs conaversion to RGb
@@ -81,7 +81,7 @@ class ALGDataset(VisionDataset):
 
             # image loading
             img_name = self.img_dir / (fname + self.img_ext)
-            img = load_image(img_name)
+            img = load_tif(img_name)
 
             if self.transforms is not None:
                 transformed = self.transforms(image=img)
