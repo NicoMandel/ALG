@@ -73,6 +73,7 @@ class Autoencoder(pl.LightningModule):
                  height : int = 32,
                  encoder_class : nn.Module = Encoder,
                  decoder_class : nn.Module = Decoder,
+                 lr : int = 1e-3,
                 *args: pl.Any, **kwargs: pl.Any) -> None:
         """
             AutoEncoder Architecture.
@@ -84,6 +85,7 @@ class Autoencoder(pl.LightningModule):
         """
         super().__init__(*args, **kwargs)
         self.latent_dim = latent_dim
+        self._lr = lr
         self.save_hyperparameters()
 
         self.encoder = encoder_class(num_input_channels, c_hid, latent_dim)
@@ -111,10 +113,10 @@ class Autoencoder(pl.LightningModule):
         return loss
     
     def configure_optimizers(self):
-        optimizer = optim.Adam(self.parameters(), lr=1e-3)
+        optimizer = optim.Adam(self.parameters(), lr=self._lr)
 
         # scheduler is optional but helpful
-        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.2, patience=20, min_lr=5e-5)
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.2, patience=120, min_lr=5e-5)
         return {"optimizer" : optimizer, "lr_scheduler" : scheduler, "monitor" : "val_loss"}
 
     # steps

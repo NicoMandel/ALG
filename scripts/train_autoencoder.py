@@ -7,6 +7,7 @@ from torchvision import transforms as torch_tfs
 from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 
+from alg.resnet_ae import ResnetAutoencoder
 from alg.autoencoder import Autoencoder
 from alg.ae_utils import GenerateCallback
 from alg.ae_dataloader import ALGRAWDataModule
@@ -20,6 +21,7 @@ if __name__=="__main__":
     pl.seed_everything(42)
 
     # model
+    # ae = ResnetAutoencoder(18, True)
     ae = Autoencoder()
     name = str(ae) + "_alg32"
 
@@ -36,22 +38,23 @@ if __name__=="__main__":
     ])
   
     datadir = os.path.join(basedir, 'data', 'raw')
-    train_datamod = ALGRAWDataModule(root=datadir, transforms=tfs, batch_size=128, num_workers=20)
+    train_datamod = ALGRAWDataModule(root=datadir, transforms=tfs, batch_size=64, num_workers=20)
 
     # Loading the training dataset. We need to split it into a training and validation part
     # pl.seed_everything(42)
 
     # Logger
-    logdir = os.path.join(basedir, 'lightning_logs', 'ae')
+    logdir = os.path.join(basedir, 'lightning_logs', 'resnet_ae')
     logger = pl_loggers.TensorBoardLogger(save_dir=logdir, name=name)
     log_imgs = torch.stack([train_datamod.default_dataset[i][0] for i in range(8)], dim=0)
 
     trainer = pl.Trainer(
         accelerator="gpu",
         devices=[0],
-        max_epochs=1000,
+        max_epochs=3000,
         precision=32,
         logger=logger,
+        # fast_dev_run=True,
         callbacks=[
             ModelCheckpoint(save_weights_only=True, save_top_k=1),
             GenerateCallback(log_imgs, every_n_epochs=50),
