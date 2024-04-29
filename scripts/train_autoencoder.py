@@ -8,7 +8,6 @@ from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 
 from alg.resnet_ae import ResnetAutoencoder
-from alg.autoencoder import Autoencoder
 from alg.ae_utils import GenerateCallback
 from alg.ae_dataloader import ALGRAWDataModule
 
@@ -21,8 +20,7 @@ if __name__=="__main__":
     pl.seed_everything(42)
 
     # model
-    # ae = ResnetAutoencoder(18, True)
-    ae = Autoencoder()
+    ae = ResnetAutoencoder(18, True)
     name = str(ae) + "_alg32"
 
     # Dataset

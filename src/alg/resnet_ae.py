@@ -14,14 +14,19 @@ class ResnetEncoder(nn.Module):
     }
 
     def __init__(self, resnet_version, transfer=True):
+        super().__init__()
         net = self.resnets[resnet_version](pretrained=transfer)
         self.net = torch.nn.Sequential(*(list(net.children())[:-1]))
 
     def forward(self, x : torch.Tensor) -> torch.Tensor:
-        return self.net(x)
+        x = self.net(x)
+        return x.reshape(x.shape[0], -1)
     
     def linear_size(self):
-        list(self.net.children())[-1].out_features
+        bbsq = list(self.net.children())[-2]
+        bb = list(bbsq.children())[-1]
+        ft = list(bb.children())[-1].num_features
+        return ft
 
 class DecoderBlock(nn.Module):
     """
@@ -40,7 +45,6 @@ class DecoderBlock(nn.Module):
     def forward(self, x : torch.Tensor) -> torch.Tensor:
         return self.layers(x)
 
-
 class Decoder(nn.Module):
 
     def __init__(self, num_input_channels : int = 3, c_hid : int = 32, latent_dim : int =512) -> None:
@@ -54,7 +58,7 @@ class Decoder(nn.Module):
         super().__init__()
 
         # 16 x 16 is from the reshape into a -1, 4, 4 ! -> so this effectively turns the size into 16 times that
-        self.linear = nn.Sequential(nn.Linear(latent_dim, 2 * 16 * c_hid), nn.GELU)
+        self.linear = nn.Sequential(nn.Linear(latent_dim, 2 * 4 * 4 * c_hid), nn.GELU())
         self.net = nn.Sequential(
             nn.ConvTranspose2d(2 * c_hid, 2 * c_hid, kernel_size=3, output_padding=1, padding=1, stride=2),  # 4 x 4 => 8 x 8
             nn.GELU(),
@@ -66,6 +70,7 @@ class Decoder(nn.Module):
 
     def forward(self, x : torch.Tensor) -> torch.Tensor:
         x = self.linear(x)
+        # B x C x H x W
         x = x.reshape(x.shape[0], -1, 4, 4)
         x = self.net(x)
         return x
@@ -73,13 +78,12 @@ class Decoder(nn.Module):
 class ResnetAutoencoder(pl.LightningModule):
 
     def __init__(self,
+                 resnet_version : int,
+                 transfer : bool = True,
                  c_hid : int = 32,
-                #  latent_dim  : int =512,
                  num_input_channels : int = 3,
                  width : int = 32,
                  height : int = 32,
-                 encoder_class : nn.Module = ResnetEncoder,
-                 decoder_class : nn.Module = Decoder,
                  lr : int = 1e-3,
                 *args: pl.Any, **kwargs: pl.Any) -> None:
         """
@@ -91,18 +95,19 @@ class ResnetAutoencoder(pl.LightningModule):
             width and height are dimensions of input. to set the graph
         """
         super().__init__(*args, **kwargs)
-        self.latent_dim = latent_dim
         self._lr = lr
         self.save_hyperparameters()
 
-        self.encoder = encoder_class(num_input_channels, c_hid, latent_dim)
-        self.decoder = decoder_class(num_input_channels, c_hid, latent_dim)
+        self.encoder = ResnetEncoder(resnet_version, transfer)
+        lin_feat = self.encoder.linear_size()
+        self.latent_dim = lin_feat
+        self.decoder = Decoder(num_input_channels, c_hid, lin_feat)
         self.example_input_array = torch.zeros(1, num_input_channels, width, height)
         
         self.loss = nn.MSELoss(reduction="none")
 
     def __str__(self) -> str:
-        return f"enc:{len(self.encoder.net)}-dec:{len(self.decoder.net) + 1}-lat:{self.latent_dim}"
+        return f"ResNetAE: enc:{len(self.encoder.net)}-dec:{len(self.decoder.net) + 1}-lat:{self.encoder.linear_size()}"
 
     def forward(self, x : torch.Tensor) -> torch.Tensor:
         z = self.encoder(x)
