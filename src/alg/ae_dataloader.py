@@ -30,11 +30,12 @@ def load_image(fpath : str) -> np.ndarray:
 class ALGRAWDataset(VisionDataset):
     
     def __init__(self, root: str, transforms = None, transform = None, target_transform = None, 
-                 img_folder : str = "images"
+                 img_folder : str = "images", load_names : bool = False
                  ) -> None:
         super().__init__(root, transforms, transform, target_transform)
 
         self.img_dir = Path(self.root) / img_folder
+        self.load_names = load_names
         
         self.img_list = []
         for ext in IMG_EXT:
@@ -46,7 +47,7 @@ class ALGRAWDataset(VisionDataset):
         return len(self.img_list)
     
 
-    def __getitem__(self, idx: int) -> tuple[np.ndarray, np.ndarray]:
+    def __getitem__(self, idx: int) -> tuple[Image.Image, np.ndarray]:
             if torch.torch.is_tensor(idx):
                 idx = idx.tolist()
             
@@ -54,6 +55,9 @@ class ALGRAWDataset(VisionDataset):
 
             # image loading
             img_name = self.img_dir / fname
+            if self.load_names:
+                return img_name
+            
             img = load_image(img_name)
 
             if self.transforms is not None:

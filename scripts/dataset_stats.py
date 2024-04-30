@@ -112,11 +112,24 @@ def test_raw_dataset(basedir : str, save = False):
         else:
             plt.savefig('someimg.png')
 
-
+def clean_raw_dataset(raw_ds, clean : bool = False, img_size : int = 256):
+    import os
+    ctr = 0
+    for img_name in tqdm(raw_ds):
+        img = load_image(img_name)
+        if img.size != (img_size, img_size):
+            ctr += 1
+            if clean:
+                os.remove(os.path.abspath(img_name))
+            else:
+                print(f"{img_name} not ({img_size} x {img_size}), but {img.size}")
+    print(f"Length of Dataset: {len(raw_ds)}. Images not of size: ({img_size} x {img_size}): {ctr}, {ctr / len(raw_ds) * 100:.2f}%")
 
 if __name__=="__main__":
     basedir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
-
+    dir_256 = os.path.join(basedir, 'data', '256')
+    raw_ds = ALGRAWDataset(dir_256, load_names=True)
+    clean_raw_dataset(raw_ds, img_size=256)
     test_raw_dataset(basedir, save=True)
     # Dataset Cleaning Block!
     dd_b = "~/src/csu/data/ALG/sites"
