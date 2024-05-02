@@ -47,7 +47,7 @@ class ALGRAWDataset(VisionDataset):
         return len(self.img_list)
     
 
-    def __getitem__(self, idx: int) -> tuple[Image.Image, np.ndarray]:
+    def __getitem__(self, idx: int) -> tuple[Image.Image | torch.Tensor, np.ndarray]:
             if torch.torch.is_tensor(idx):
                 idx = idx.tolist()
             

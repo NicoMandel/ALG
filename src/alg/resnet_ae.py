@@ -31,10 +31,13 @@ class ResnetEncoder(nn.Module):
 class DecoderBlock(nn.Module):
     """
         A Decoder block that effectively does a convolution with a 3x3 kernel and then doubles the resolution.
-        Middel is passing a GELU layer 
+        Middel is passing a GELU layer.
+        Transposed layers:
+            * [explanation](https://d2l.ai/chapter_computer-vision/transposed-conv.html)
+            * [Pytorch](https://pytorch.org/docs/stable/generated/torch.nn.ConvTranspose2d.html)
     """
 
-    def __init__(self, in_channels, out_dim) -> None:
+    def __init__(self, in_channels : int, out_dim : int) -> None:
         super().__init__()
         self.layers = nn.Sequential(
             nn.Conv2d(in_channels, in_channels, kernel_size=3, padding=1),
@@ -57,14 +60,21 @@ class Decoder(nn.Module):
         """
         super().__init__()
 
-        # 16 x 16 is from the reshape into a -1, 4, 4 ! -> so this effectively turns the size into 16 times that
         self.linear = nn.Sequential(nn.Linear(latent_dim, 2 * 4 * 4 * c_hid), nn.GELU())
+        # 16 x 16 is from the reshape into a -1, 4, 4 ! -> so this effectively turns the size into 16 times that
+        # input here is a B x 64 x 4 x 4
         self.net = nn.Sequential(
-            nn.ConvTranspose2d(2 * c_hid, 2 * c_hid, kernel_size=3, output_padding=1, padding=1, stride=2),  # 4 x 4 => 8 x 8
+            nn.ConvTranspose2d(2 * c_hid, 2 * c_hid, kernel_size=3, output_padding=1, padding=1, stride=2),  # 64 x 4 x 4 => 64 x 8 x 8
             nn.GELU(),
-            DecoderBlock(2 * c_hid, c_hid),
+            DecoderBlock(2 * c_hid, c_hid), # 64 x 8 x 8 [4096]  -> 32 x 16 x 16 [8192]
             nn.GELU(),
-            DecoderBlock(c_hid, 3),
+            nn.ConvTranspose2d(c_hid, c_hid, kernel_size=3, output_padding=1, padding=1, stride=2),  # 32 x 16 x 16 => 32 x 32 x 32
+            nn.GELU(),
+            DecoderBlock(c_hid, c_hid // 2),  # 32 x 32 x 32 -> 16 x 64 x 64 [65536]
+            nn.GELU(),
+            DecoderBlock(c_hid // 2, c_hid // 4),  # 16 x 64 x 64 [65536] -> 8 x 128 x 128
+            nn.GELU(),
+            DecoderBlock(c_hid // 4, 3),  # 8 x 128 x 128 [131072] -> 3 x 256 x 256 [196608] 
             nn.Tanh(),
         )
 
@@ -96,6 +106,7 @@ class ResnetAutoencoder(pl.LightningModule):
         """
         super().__init__(*args, **kwargs)
         self._lr = lr
+        self._res_ver = resnet_version
         self.save_hyperparameters()
 
         self.encoder = ResnetEncoder(resnet_version, transfer)
@@ -107,7 +118,7 @@ class ResnetAutoencoder(pl.LightningModule):
         self.loss = nn.MSELoss(reduction="none")
 
     def __str__(self) -> str:
-        return f"ResNetAE: enc:{len(self.encoder.net)}-dec:{len(self.decoder.net) + 1}-lat:{self.encoder.linear_size()}"
+        return f"ResNet{self._res_ver}AE:dec:{len(self.decoder.net) + 1}-lat:{self.encoder.linear_size()}"
 
     def forward(self, x : torch.Tensor) -> torch.Tensor:
         z = self.encoder(x)
@@ -128,8 +139,9 @@ class ResnetAutoencoder(pl.LightningModule):
         optimizer = optim.Adam(self.parameters(), lr=self._lr)
 
         # scheduler is optional but helpful
-        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.2, patience=120, min_lr=5e-5)
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.2, patience=60, min_lr=5e-5)
         return {"optimizer" : optimizer, "lr_scheduler" : scheduler, "monitor" : "val_loss"}
+        # return optimizer
 
     # steps
     def training_step(self, batch, batch_idx) -> torch.Tensor:

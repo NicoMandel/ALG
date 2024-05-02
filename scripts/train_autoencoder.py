@@ -20,8 +20,8 @@ if __name__=="__main__":
     pl.seed_everything(42)
 
     # model
-    ae = ResnetAutoencoder(18, True)
-    name = str(ae) + "_alg32"
+    ae = ResnetAutoencoder(18, True, width=256, height=256)
+    name = str(ae) + "_alg256_256"
 
     # Dataset
     # Transformations applied on each image => only make them a tensor
@@ -29,36 +29,36 @@ if __name__=="__main__":
     mean = (0.5,)
     std = (0.5,)
     tfs = torch_tfs.Compose([
-        torch_tfs.RandomCrop(32,32),
+        # torch_tfs.RandomCrop(32,32),
         torch_tfs.PILToTensor(),
         torch_tfs.ConvertImageDtype(torch.float),
         torch_tfs.Normalize(mean, std)        
     ])
   
-    datadir = os.path.join(basedir, 'data', 'raw')
-    train_datamod = ALGRAWDataModule(root=datadir, transforms=tfs, batch_size=64, num_workers=20)
+    datadir = os.path.join(basedir, 'data', '256')
+    train_datamod = ALGRAWDataModule(root=datadir, transforms=tfs, batch_size=256, num_workers=12)
 
     # Loading the training dataset. We need to split it into a training and validation part
     # pl.seed_everything(42)
 
     # Logger
-    logdir = os.path.join(basedir, 'lightning_logs', 'resnet_ae')
+    logdir = os.path.join(basedir, 'lightning_logs', 'ae')
     logger = pl_loggers.TensorBoardLogger(save_dir=logdir, name=name)
     log_imgs = torch.stack([train_datamod.default_dataset[i][0] for i in range(8)], dim=0)
 
     trainer = pl.Trainer(
         accelerator="gpu",
         devices=[0],
-        max_epochs=3000,
+        max_epochs=500,
         precision=32,
         logger=logger,
-        # fast_dev_run=True,
+        fast_dev_run=True,
         callbacks=[
             ModelCheckpoint(save_weights_only=True, save_top_k=1),
             GenerateCallback(log_imgs, every_n_epochs=50),
             LearningRateMonitor("epoch")
         ],
-        log_every_n_steps=2,
+        log_every_n_steps=5,
     )
 
     # trainer
