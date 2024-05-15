@@ -8,6 +8,9 @@ import pytorch_lightning as pl
 # Here we define a new class to turn the ResNet model that we want to use as a feature extractor
 # into a pytorch-lightning module so that we can take advantage of lightning's Trainer object.
 # We aim to make it a little more general by allowing users to define the number of prediction classes.
+
+from alg.resnet_ae import ResnetAutoencoder
+
 class ResNetClassifier(pl.LightningModule):
     resnets = {
         18: models.resnet18,
@@ -99,3 +102,11 @@ class ResNetClassifier(pl.LightningModule):
         # perform logging
         self.log("test_loss", loss, on_step=True, prog_bar=True, logger=True)
         self.log("test_acc", acc, on_step=True, prog_bar=True, logger=True)
+
+    def from_AE(self, AE_model : ResnetAutoencoder):
+        """
+            Function to update the weights to that of a corresponding Autoencoder 
+        """
+        new_dict = AE_model.encoder.net.state_dict()
+        missing_keys, unexpected_keys = self.resnet_model.load_state_dict(new_dict, strict = False)
+        return missing_keys, unexpected_keys

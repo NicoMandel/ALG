@@ -17,6 +17,10 @@ from torchsummary import summary
 from alg.model import ResNetClassifier
 from alg.dataloader import ALGDataModule
 from test_model import test_model
+from alg.resnet_ae import ResnetAutoencoder
+from alg.utils import compare_models
+
+from copy import deepcopy
 
 def parse_args(defdir : str):
     datadir = os.path.join(defdir, 'data')
@@ -98,6 +102,14 @@ if __name__ == "__main__":
         transfer=args.transfer,
         tune_fc_only=args.tune_fc_only,
     )
+    m1 = deepcopy(model)
+
+    # updating with weights from Autoencoder
+    checkpt_pth = os.path.join(basedir, 'lightning_logs', 'ae/ResNet18AE:dec:11-lat:512_alg256_32_Ident/version_0/checkpoints/epoch=33-step=25874.ckpt')
+    resn_ae = ResnetAutoencoder.load_from_checkpoint(checkpoint_path = checkpt_pth)
+    model.from_AE(resn_ae)
+    print(compare_models(m1, model, detail=False))
+
 
     # Set up Datamodule - with augmentations
     p = 0.5

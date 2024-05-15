@@ -16,14 +16,15 @@ class ResnetEncoder(nn.Module):
     def __init__(self, resnet_version, transfer=True):
         super().__init__()
         net = self.resnets[resnet_version](pretrained=transfer)
-        self.net = torch.nn.Sequential(*(list(net.children())[:-1]))
+        net.fc = nn.Identity()
+        self.net = net
 
     def forward(self, x : torch.Tensor) -> torch.Tensor:
         x = self.net(x)
         return x.reshape(x.shape[0], -1)
     
     def linear_size(self):
-        bbsq = list(self.net.children())[-2]
+        bbsq = list(self.net.children())[-3]
         bb = list(bbsq.children())[-1]
         ft = list(bb.children())[-1].num_features
         return ft
@@ -48,7 +49,19 @@ class DecoderBlock(nn.Module):
     def forward(self, x : torch.Tensor) -> torch.Tensor:
         return self.layers(x)
 
-class Decoder(nn.Module):
+class Dec(nn.Module):
+
+    def __init__(self) -> None:
+        super().__init__()
+    
+    def forward(self, x : torch.Tensor) -> torch.Tensor:
+        x = self.linear(x)
+        # B x C x H x W
+        x = x.reshape(x.shape[0], -1, 4, 4)
+        x = self.net(x)
+        return x
+
+class Decoder256(Dec):
 
     def __init__(self, num_input_channels : int = 3, c_hid : int = 32, latent_dim : int =512) -> None:
         """
@@ -74,16 +87,35 @@ class Decoder(nn.Module):
             nn.GELU(),
             DecoderBlock(c_hid // 2, c_hid // 4),  # 16 x 64 x 64 [65536] -> 8 x 128 x 128
             nn.GELU(),
-            DecoderBlock(c_hid // 4, 3),  # 8 x 128 x 128 [131072] -> 3 x 256 x 256 [196608] 
+            DecoderBlock(c_hid // 4, num_input_channels),  # 8 x 128 x 128 [131072] -> 3 x 256 x 256 [196608] 
             nn.Tanh(),
         )
 
-    def forward(self, x : torch.Tensor) -> torch.Tensor:
-        x = self.linear(x)
-        # B x C x H x W
-        x = x.reshape(x.shape[0], -1, 4, 4)
-        x = self.net(x)
-        return x
+class Decoder32(Dec):
+
+    def __init__(self, num_input_channels : int = 3, c_hid : int = 32, latent_dim : int  =512, act_fn : nn.Module = nn.GELU) -> None:
+        """
+            args:
+                num_input_channels : Number of Channels of the image to reconstruct. For CIFAR, parameter is 3.
+                c_hid : base_channel size - number of channels to use in the last convolutional layer. Duplicates may be used in earlier layers. default 32
+               latent_dim : dimensionality of latent representation z - default 512, can be multiple of 2 from 64 on.
+                act_fn : activation function used throughout encoder network. Default is GELU
+        """
+        super().__init__()
+
+        self.linear = nn.Sequential(nn.Linear(latent_dim, 2 * 16 * c_hid), act_fn())
+        self.net = nn.Sequential(
+            nn.ConvTranspose2d(2 * c_hid, 2 * c_hid, kernel_size=3, output_padding=1, padding=1, stride=2),  # 4 x 4 => 8 x 8
+            act_fn(),
+            nn.Conv2d(2 * c_hid, 2 * c_hid, kernel_size=3, padding=1),
+            act_fn(),
+            nn.ConvTranspose2d(2 * c_hid, c_hid, kernel_size=3, output_padding=1, padding=1, stride=2),      #  8 x 8 => 16 x 16
+            act_fn(),
+            nn.Conv2d(c_hid, c_hid, kernel_size=3, padding=1),
+            act_fn(),
+            nn.ConvTranspose2d(c_hid, num_input_channels, kernel_size=3, output_padding=1, padding=1, stride=2),      # 16 x 16 => 32 x 32
+            nn.Tanh(),
+        )
 
 class ResnetAutoencoder(pl.LightningModule):
 
@@ -112,7 +144,12 @@ class ResnetAutoencoder(pl.LightningModule):
         self.encoder = ResnetEncoder(resnet_version, transfer)
         lin_feat = self.encoder.linear_size()
         self.latent_dim = lin_feat
-        self.decoder = Decoder(num_input_channels, c_hid, lin_feat)
+        if width == 256:
+            self.decoder = Decoder256(num_input_channels, c_hid, lin_feat)
+        elif width == 32:
+            self.decoder = Decoder32(num_input_channels, c_hid, lin_feat)
+        else:
+            raise ValueError("Unknown width {} for Autoencoder training. Possible dimensions are: {}".format(width, (32, 256)))
         self.example_input_array = torch.zeros(1, num_input_channels, width, height)
         
         self.loss = nn.MSELoss(reduction="none")

@@ -20,8 +20,8 @@ if __name__=="__main__":
     pl.seed_everything(42)
 
     # model
-    ae = ResnetAutoencoder(18, True, width=256, height=256)
-    name = str(ae) + "_alg256_256"
+    ae = ResnetAutoencoder(18, True, width=32, height=32)
+    name = str(ae) + "_alg256_32_Ident"
 
     # Dataset
     # Transformations applied on each image => only make them a tensor
@@ -29,7 +29,7 @@ if __name__=="__main__":
     mean = (0.5,)
     std = (0.5,)
     tfs = torch_tfs.Compose([
-        # torch_tfs.RandomCrop(32,32),
+        torch_tfs.RandomCrop(32,32),
         torch_tfs.PILToTensor(),
         torch_tfs.ConvertImageDtype(torch.float),
         torch_tfs.Normalize(mean, std)        
@@ -52,7 +52,7 @@ if __name__=="__main__":
         max_epochs=500,
         precision=32,
         logger=logger,
-        fast_dev_run=True,
+        # fast_dev_run=True,
         callbacks=[
             ModelCheckpoint(save_weights_only=True, save_top_k=1),
             GenerateCallback(log_imgs, every_n_epochs=50),
