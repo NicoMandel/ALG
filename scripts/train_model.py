@@ -12,18 +12,17 @@ import pytorch_lightning as pl
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from pytorch_lightning import loggers as pl_loggers
-from torchsummary import summary
+# from torchsummary import summary
 
 from alg.model import ResNetClassifier
 from alg.dataloader import ALGDataModule
 from test_model import test_model
-from alg.resnet_ae import ResnetAutoencoder
-from alg.utils import compare_models
+# from alg.resnet_ae import ResnetAutoencoder
+# from alg.utils import compare_models
 
-from copy import deepcopy
+# from copy import deepcopy
 
 def parse_args(defdir : str):
-    datadir = os.path.join(defdir, 'data')
     resdir = os.path.join(defdir, 'lightning_logs')
     parser = ArgumentParser()
     # Required arguments
@@ -38,8 +37,10 @@ def parse_args(defdir : str):
     )
     parser.add_argument("num_epochs", help="""Number of Epochs to Run.""", type=int, default=300)
     parser.add_argument(
-        "datadir", help="""Path to root data folder.""", type=str, default=datadir
+        "datadir", help="""Path to root data folder, as child folder of ../data .""", type=str
     )
+
+    # optional arguments
     parser.add_argument(
         "-o",
         "--optimizer",
@@ -90,7 +91,12 @@ if __name__ == "__main__":
     basedir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
     args = parse_args(basedir)
 
-    logdir = os.path.join(basedir, 'lightning_logs')
+    # root data dir
+    rootdir = os.path.join(basedir, 'data')
+    datadir = os.path.join(rootdir, args.datadir)
+    dataset_name = args.datadir
+
+    logdir = os.path.join(basedir, 'lightning_logs', 'baseline', dataset_name)
 
     # # Instantiate Model
     model = ResNetClassifier(
@@ -102,13 +108,13 @@ if __name__ == "__main__":
         transfer=args.transfer,
         tune_fc_only=args.tune_fc_only,
     )
-    m1 = deepcopy(model)
+    # m1 = deepcopy(model)
 
-    # updating with weights from Autoencoder
-    checkpt_pth = os.path.join(basedir, 'lightning_logs', 'ae/ResNet18AE:dec:11-lat:512_alg256_32_Ident/version_0/checkpoints/epoch=33-step=25874.ckpt')
-    resn_ae = ResnetAutoencoder.load_from_checkpoint(checkpoint_path = checkpt_pth)
-    model.from_AE(resn_ae)
-    print(compare_models(m1, model, detail=False))
+    # # updating with weights from Autoencoder
+    # checkpt_pth = os.path.join(basedir, 'lightning_logs', 'ae/ResNet18AE:dec:11-lat:512_alg256_32_Ident/version_0/checkpoints/epoch=33-step=25874.ckpt')
+    # resn_ae = ResnetAutoencoder.load_from_checkpoint(checkpoint_path = checkpt_pth)
+    # model.from_AE(resn_ae)
+    # print(compare_models(m1, model, detail=False))
 
 
     # Set up Datamodule - with augmentations
@@ -139,7 +145,7 @@ if __name__ == "__main__":
         ToTensorV2()        # 
     ])
     datamodule = ALGDataModule(
-        root = args.datadir,
+        root = datadir,
         img_folder="images",
         label_folder="labels",
         transforms=augmentations,
@@ -177,7 +183,8 @@ if __name__ == "__main__":
         "max_epochs": args.num_epochs,
         "callbacks": [checkpoint_callback, stopping_callback],
         "precision": 32,
-        "logger": pl_loggers.TensorBoardLogger(save_dir=logdir, name=fn)
+        "logger": pl_loggers.TensorBoardLogger(save_dir=logdir, name=fn),
+        # "fast_dev_run" : True
     }
     trainer = pl.Trainer(**trainer_args)
     trainer.logger._log_graph = True
@@ -198,15 +205,17 @@ if __name__ == "__main__":
     best_path = checkpoint_callback.best_model_path
     print(f"Best model at: {best_path}")
     best_model = ResNetClassifier.load_from_checkpoint(best_path)
-    if args.test_set is not None:
-        results = test_model(
-            best_path,
-            args.test_set,
-            threshold=args.threshold,
-            batch_size=args.batch_size,
-            logger=trainer.logger
-        )
-        # test_root = args["test_set"]
+    
+
+    test_dir = os.path.join(datadir, 'test')
+    results = test_model(
+        best_path,
+        test_dir,
+        threshold=args.threshold,
+        batch_size=args.batch_size,
+        logger=trainer.logger
+    )
+    # test_root = args["test_set"]
         # test_ds = ALG
         # test_dataloader = 
         # trainer.test(model)

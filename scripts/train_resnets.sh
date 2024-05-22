@@ -1,11 +1,11 @@
 #!/usr/bin/bash
-resnets=(18 34 50 101 152)
-trto=("" "-tr" "-tr -to")
+resnets=(34 50 101)
+dss=("flowering" "vegetative" "combined")
 
 for i in "${resnets[@]}"
 do
-    for tr in "${trto[@]}"
+    for ds in "${dss[@]}"
     do
-        echo "scripts/train_model.py" $i 2 200 data $tr 
+        python "scripts/train_model.py" $i 2 200 $ds -tr 
     done 
 done
