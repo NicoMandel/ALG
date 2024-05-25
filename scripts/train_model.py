@@ -12,13 +12,10 @@ import pytorch_lightning as pl
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from pytorch_lightning import loggers as pl_loggers
-# from torchsummary import summary
 
 from alg.model import ResNetClassifier
 from alg.dataloader import ALGDataModule
 from test_model import test_model
-# from alg.resnet_ae import ResnetAutoencoder
-# from alg.utils import compare_models
 
 # from copy import deepcopy
 
@@ -60,9 +57,6 @@ def parse_args(defdir : str):
         help="""Manually determine batch size. Defaults to 16.""",
         type=int,
         default=16,
-    )
-    parser.add_argument(
-        "-ts", "--test_set", help="""Optional test set path.""", type=str, default=None
     )
     parser.add_argument(
         "--threshold", help="""Threshold to use when to classify an image as ALG""", default=0.5, type=float
@@ -108,14 +102,6 @@ if __name__ == "__main__":
         transfer=args.transfer,
         tune_fc_only=args.tune_fc_only,
     )
-    # m1 = deepcopy(model)
-
-    # # updating with weights from Autoencoder
-    # checkpt_pth = os.path.join(basedir, 'lightning_logs', 'ae/ResNet18AE:dec:11-lat:512_alg256_32_Ident/version_0/checkpoints/epoch=33-step=25874.ckpt')
-    # resn_ae = ResnetAutoencoder.load_from_checkpoint(checkpoint_path = checkpt_pth)
-    # model.from_AE(resn_ae)
-    # print(compare_models(m1, model, detail=False))
-
 
     # Set up Datamodule - with augmentations
     p = 0.5
@@ -190,22 +176,12 @@ if __name__ == "__main__":
     trainer.logger._log_graph = True
     trainer.logger._default_hp_metric = None    # none needed
 
-    # print summary
-    # m2 = model.resnet_model.to(device=0)
-    # summary(m2, model.example_input_array.shape[1:])
-    # l= list(model.resnet_model.children())[-1]
-    # appears to be 512 - can access through the l.in_features component Change the decoder to be that.
-    # removing the last layer: https://stackoverflow.com/questions/52548174/how-to-remove-the-last-fc-layer-from-a-resnet-model-in-pytorch
-    #  https://discuss.pytorch.org/t/removing-layers-from-resnet-pretrained-model/116166
-    # https://discuss.pytorch.org/t/how-to-delete-layer-in-pretrained-model/17648/5
-
     trainer.fit(model, datamodule=datamodule)
 
     # Getting the best model out
     best_path = checkpoint_callback.best_model_path
     print(f"Best model at: {best_path}")
     best_model = ResNetClassifier.load_from_checkpoint(best_path)
-    
 
     test_dir = os.path.join(datadir, 'test')
     results = test_model(
@@ -215,13 +191,6 @@ if __name__ == "__main__":
         batch_size=args.batch_size,
         logger=trainer.logger
     )
-    # test_root = args["test_set"]
-        # test_ds = ALG
-        # test_dataloader = 
-        # trainer.test(model)
-    
-    # Save trained model weights
-    # torch.save(best_model.state_dict(), save_path + "/trained_model.pt")
 
 
         
