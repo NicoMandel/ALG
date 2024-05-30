@@ -30,7 +30,7 @@ def parse_args():
         "-e", "--ext", help="""File extension for label files""", type=str, default=".txt"
     )
     parser.add_argument(
-        "-b", "--batch_size", help="""Batch size to use during testing""", type=int, default=16
+        "-b", "--batch_size", help="""Batch size to use during testing""", type=int, default=4
     )
     parser.add_argument(
         "-t", "--threshold", help="""Threshold when to define an image as ALG containing""", type=float, default=0.5
@@ -41,7 +41,7 @@ def parse_args():
     return parser.parse_args()
 
 def test_model(
-        model_path : str, datadir : str, threshold : float = 0.5, fext : str = ".txt", batch_size : int = 16,
+        model_path : str, datadir : str, threshold : float = 0.5, fext : str = ".txt", batch_size : int = 4,
         logger : pl_loggers.TensorBoardLogger = None 
     ):
     mean = [0.485, 0.456, 0.406]
@@ -58,7 +58,7 @@ def test_model(
         transforms=transformations
     )
     bs = batch_size if batch_size < len(alg_test_ds) else len(alg_test_ds) // 2
-    dl = DataLoader(alg_test_ds, batch_size=bs, num_workers=4, drop_last=True)
+    dl = DataLoader(alg_test_ds, batch_size=bs, num_workers=4, drop_last=False)
     
     # model
     model = ResNetClassifier.load_from_checkpoint(model_path)

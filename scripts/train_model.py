@@ -74,9 +74,6 @@ def parse_args(defdir : str):
         action="store_true",
     )
     parser.add_argument(
-        "-s", "--save_path", help="""Path to save model trained model checkpoint.""", default=resdir
-    )
-    parser.add_argument(
         "-g", "--gpus", help="""Enables GPU acceleration.""", type=int, default=1
     )
     return parser.parse_args()
@@ -149,10 +146,9 @@ if __name__ == "__main__":
     if args.tune_fc_only:
         mdl_config += "-finetune"
     fn = "resnet{}-{}".format(args.model, mdl_config)
-    save_path = args.save_path if args.save_path is not None else "models"
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
-        dirpath=save_path,
-        filename=fn+"-{epoch}-{val_acc:0.2f}",
+        dirpath=logdir,
+        filename=fn+"{dataset_name}-{epoch}-{val_acc:0.2f}",
         monitor="val_acc",
         save_top_k=1,
         mode="max",
@@ -188,7 +184,6 @@ if __name__ == "__main__":
         best_path,
         test_dir,
         threshold=args.threshold,
-        batch_size=args.batch_size,
         logger=trainer.logger
     )
 
