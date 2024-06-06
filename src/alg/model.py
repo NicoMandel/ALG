@@ -1,3 +1,4 @@
+import os.path
 import torch
 import torch.nn as nn
 import torchvision.models as models
@@ -77,7 +78,7 @@ class ResNetClassifier(pl.LightningModule):
             y = y.float()
 
         loss = self.loss_fn(preds, y)
-        acc = self.acc(preds, y)
+        acc = self.acc(preds, y.int())
         return loss, acc
     
     def training_step(self, batch, batch_idx):
@@ -110,3 +111,4 @@ class ResNetClassifier(pl.LightningModule):
         new_dict = AE_model.encoder.net.state_dict()
         missing_keys, unexpected_keys = self.resnet_model.load_state_dict(new_dict, strict = False)
         return missing_keys, unexpected_keys
+    

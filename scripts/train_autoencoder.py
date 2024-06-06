@@ -20,8 +20,8 @@ if __name__=="__main__":
     pl.seed_everything(42)
 
     # model
-    ae = ResnetAutoencoder(18, True, width=32, height=32)
-    name = str(ae) + "_alg256_32_Ident"
+    ae = ResnetAutoencoder(18, True, width=256, height=256)
+    name = str(ae) + "_alg256_256_Ident"
 
     # Dataset
     # Transformations applied on each image => only make them a tensor
@@ -29,14 +29,14 @@ if __name__=="__main__":
     mean = (0.5,)
     std = (0.5,)
     tfs = torch_tfs.Compose([
-        torch_tfs.RandomCrop(32,32),
+        # torch_tfs.RandomCrop(32,32),
         torch_tfs.PILToTensor(),
         torch_tfs.ConvertImageDtype(torch.float),
         torch_tfs.Normalize(mean, std)        
     ])
   
     datadir = os.path.join(basedir, 'data', '256')
-    train_datamod = ALGRAWDataModule(root=datadir, transforms=tfs, batch_size=256, num_workers=12)
+    train_datamod = ALGRAWDataModule(root=datadir, transforms=tfs, batch_size=256, num_workers=20)
 
     # Loading the training dataset. We need to split it into a training and validation part
     # pl.seed_everything(42)

@@ -31,7 +31,7 @@ def parse_args(defdir : str):
         default=18
     )
     parser.add_argument(
-        "num_classes", help="""Number of classes to be learned.""", type=int, default=2,
+        "num_classes", help="""Number of classes to be learned.""", type=int, default=1,
     )
     parser.add_argument("num_epochs", help="""Number of Epochs to Run.""", type=int, default=300)
     parser.add_argument(
@@ -92,7 +92,7 @@ if __name__ == "__main__":
     datadir = os.path.join(rootdir, args.datadir)
     dataset_name = args.datadir
 
-    logdir = os.path.join(basedir, 'lightning_logs', 'from_ae', dataset_name)
+    logdir = os.path.join(basedir, 'lightning_logs',  'binary', 'from_ae', dataset_name)
 
     # # Instantiate Model
     model = ResNetClassifier(
@@ -154,10 +154,10 @@ if __name__ == "__main__":
         label_ext=".tif"
     )
 
-    fn = os.path.splitext(os.path.basename(args.ae_model))[0]
+    fn = os.path.splitext(os.path.basename(args.ae_model))[0] + str(dataset_name)
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
         dirpath=logdir,
-        filename=fn+"{dataset_name}-{epoch}-{val_acc:0.2f}",
+        filename=fn+"-{epoch}-{val_acc:0.2f}",
         monitor="val_acc",
         save_top_k=1,
         mode="max",
