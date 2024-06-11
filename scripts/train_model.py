@@ -81,28 +81,7 @@ def parse_args(defdir : str):
     )
     return parser.parse_args()
 
-if __name__ == "__main__":
-    basedir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    args = parse_args(basedir)
-
-    # root data dir
-    rootdir = os.path.join(basedir, 'data')
-    datadir = os.path.join(rootdir, args.datadir)
-    dataset_name = args.datadir
-
-    logdir = os.path.join(basedir, 'lightning_logs', "binary_{}".format(args.limit), dataset_name)
-
-    # # Instantiate Model
-    model = ResNetClassifier(
-        num_classes=args.num_classes,
-        resnet_version=args.model,
-        optimizer=args.optimizer,
-        lr=args.learning_rate,
-        batch_size=args.batch_size,
-        transfer=args.transfer,
-        tune_fc_only=args.tune_fc_only,
-    )
-
+def train_model(model : pl.LightningModule, args, fn : str, logdir, datadir):
     # Set up Datamodule - with augmentations
     p = 0.5
     mean = [0.485, 0.456, 0.406]
@@ -144,12 +123,6 @@ if __name__ == "__main__":
         label_ext=".tif"
     )
 
-    mdl_config = ""
-    if args.transfer:
-        mdl_config += "-transfer"
-    if args.tune_fc_only:
-        mdl_config += "-finetune"
-    fn = "resnet{}-{}".format(args.model, mdl_config) + "-" + str(dataset_name)
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
         dirpath=logdir,
         filename=fn+"-{epoch}-{val_acc:0.2f}",
@@ -159,7 +132,7 @@ if __name__ == "__main__":
         save_last=True,
     )
 
-    stopping_callback = pl.callbacks.EarlyStopping(monitor="val_acc", mode="max", patience=50)
+    stopping_callback = pl.callbacks.EarlyStopping(monitor="val_acc", mode="max", patience=20)
 
     # Instantiate lightning trainer and train model
     trainer_args = {
@@ -181,14 +154,44 @@ if __name__ == "__main__":
     # Getting the best model out
     best_path = checkpoint_callback.best_model_path
     print(f"Best model at: {best_path}")
-    best_model = ResNetClassifier.load_from_checkpoint(best_path)
+    return best_path, trainer.logger
+
+if __name__ == "__main__":
+    basedir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    args = parse_args(basedir)
+
+    # root data dir
+    rootdir = os.path.join(basedir, 'data')
+    datadir = os.path.join(rootdir, args.datadir)
+    dataset_name = args.datadir
+
+    logdir = os.path.join(basedir, 'lightning_logs', "binary_{}".format(args.limit), dataset_name)
+
+    # # Instantiate Model
+    model = ResNetClassifier(
+        num_classes=args.num_classes,
+        resnet_version=args.model,
+        optimizer=args.optimizer,
+        lr=args.learning_rate,
+        batch_size=args.batch_size,
+        transfer=args.transfer,
+        tune_fc_only=args.tune_fc_only,
+    )
+
+    mdl_config = ""
+    if args.transfer:
+        mdl_config += "-transfer"
+    if args.tune_fc_only:
+        mdl_config += "-finetune"
+    fn = "resnet{}-{}".format(args.model, mdl_config) + "-" + str(dataset_name)
+    best_path, logger = train_model(model, args, fn, logdir, datadir)
 
     test_dir = os.path.join(datadir, 'test')
     results = test_model(
         best_path,
         test_dir,
         threshold=args.threshold,
-        logger=trainer.logger
+        logger=logger
     )
 
 

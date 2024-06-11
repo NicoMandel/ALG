@@ -17,6 +17,7 @@ from alg.model import ResNetClassifier
 from alg.resnet_ae import ResnetAutoencoder
 from alg.dataloader import ALGDataModule
 from test_model import test_model
+from train_model import train_model
 
 # from copy import deepcopy
 
@@ -116,89 +117,18 @@ if __name__ == "__main__":
     missing_keys, unexp_keys = model.from_AE(resn_ae)
     print("Missing Layers: {}".format(missing_keys))
     print("Unexpected Layers: {}".format(unexp_keys))
-    
-    # Set up Datamodule - with augmentations
-    p = 0.5
-    mean = [0.485, 0.456, 0.406]
-    std = [0.229, 0.224, 0.225]
-    augmentations = A.Compose([
-        A.OneOf([
-            A.VerticalFlip(p=p),
-            A.Rotate(limit=179, p=p),
-            A.HorizontalFlip(p=p)
-        ], p=1),
-        # Color Transforms
-        A.OneOf([ 
-            # A.CLAHE(),
-            A.RandomBrightnessContrast(p=p),
-            A.RandomGamma(p=p),
-            A.HueSaturationValue(p=p),
-            A.GaussNoise(p=p)
-        ], p=1),
-        # Elastic Transforms
-        A.OneOf([
-            A.ElasticTransform(p=p),
-            A.GridDistortion(p=p),
-            A.OpticalDistortion(p=p),
-        ], p=1),
-        A.Normalize(mean=mean, std=std),
-        ToTensorV2()        # 
-    ])
-    datamodule = ALGDataModule(
-        root = datadir,
-        img_folder="images",
-        label_folder="labels",
-        transforms=augmentations,
-        batch_size=args.batch_size, 
-        num_workers=4,
-        threshold=args.threshold,
-        val_percentage=0.2,
-        limit=args.limit,
-        img_ext=".tif",
-        label_ext=".tif"
-    )
 
     fn = os.path.splitext(os.path.basename(args.ae_model))[0] + str(dataset_name)
-    checkpoint_callback = pl.callbacks.ModelCheckpoint(
-        dirpath=logdir,
-        filename=fn+"-{epoch}-{val_acc:0.2f}",
-        monitor="val_acc",
-        save_top_k=1,
-        mode="max",
-        save_last=True,
-    )
-
-    stopping_callback = pl.callbacks.EarlyStopping(monitor="val_acc", mode="max", patience=50)
-
-    # Instantiate lightning trainer and train model
-    trainer_args = {
-        "accelerator": "gpu" if args.gpus else None,
-        "devices": [0],
-        "strategy": "dp" if args.gpus > 1 else None,
-        "max_epochs": args.num_epochs,
-        "callbacks": [checkpoint_callback, stopping_callback],
-        "precision": 32,
-        "logger": pl_loggers.TensorBoardLogger(save_dir=logdir, name=fn),
-        # "fast_dev_run" : True
-    }
-    trainer = pl.Trainer(**trainer_args)
-    trainer.logger._log_graph = True
-    trainer.logger._default_hp_metric = None    # none needed
-
-    # Actual training step
-    trainer.fit(model, datamodule=datamodule)
 
     # Getting the best model out
-    best_path = checkpoint_callback.best_model_path
-    print(f"Best model at: {best_path}")
-    best_model = ResNetClassifier.load_from_checkpoint(best_path)
+    best_path, logger = train_model(model, args, fn, logdir, datadir)
 
     test_dir = os.path.join(datadir, 'test')
     results = test_model(
         best_path,
         test_dir,
         threshold=args.threshold,
-        logger=trainer.logger
+        logger=logger
     )
 
 
