@@ -4,7 +4,7 @@ import torch
 from torchvision.datasets.vision import VisionDataset
 from pathlib import Path
 from PIL import Image
-from torch.utils.data import random_split, DataLoader
+from torch.utils.data import random_split, DataLoader, Subset
 import numpy as np
 import cv2
 import albumentations as A
@@ -124,6 +124,7 @@ class ALGDataModule(pl.LightningDataModule):
                  num_classes : int = 3, img_ext = ".tif", label_ext=".tif",
                  clean_values : tuple = (0, 127), threshold : float = 0.6,
                  transforms : A.Compose = None, val_percentage : float = 0.2,
+                 limit : float = None, seed : int = 42,
                  num_workers : int = 4, batch_size : int = 16) -> None:
         super().__init__()
         self.root = root
@@ -142,6 +143,9 @@ class ALGDataModule(pl.LightningDataModule):
         self.num_workers = num_workers
         self.batch_size = batch_size
 
+        self.limit = limit
+        self.seed = seed        # for reproducibility
+
     def prepare_data(self):
         """
             Preparing data splits
@@ -156,7 +160,19 @@ class ALGDataModule(pl.LightningDataModule):
         val_part = dataset_len - train_part
 
         # Actual datasets
-        self.train_dataset, self.val_dataset = random_split(self.default_dataset, [train_part, val_part])
+        generator = torch.Generator().manual_seed(self.seed)
+        train_dataset, val_dataset = random_split(self.default_dataset, [train_part, val_part], generator=generator)
+        if self.limit:
+            train_count = int(np.floor(self.limit * len(train_dataset)))
+            val_count = int(np.floor(self.limit * len(val_dataset)))
+            np.random.seed(self.seed)
+            ss_ind_train = np.random.choice(len(train_dataset), train_count)
+            ss_ind_val = np.random.choice(len(val_dataset), val_count)
+            self.train_dataset = Subset(train_dataset, ss_ind_train)
+            self.val_dataset = Subset(val_dataset, ss_ind_val)
+        else:
+            self.train_dataset = train_dataset
+            self.val_dataset = val_dataset
 
     # Dataloaders:
     def train_dataloader(self) -> DataLoader:

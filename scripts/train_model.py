@@ -76,6 +76,9 @@ def parse_args(defdir : str):
     parser.add_argument(
         "-g", "--gpus", help="""Enables GPU acceleration.""", type=int, default=1
     )
+    parser.add_argument(
+        "--limit", help="""Limit Training and validation Batches - how much data to use as a subset.""", type=float, default=1.0
+    )
     return parser.parse_args()
 
 if __name__ == "__main__":
@@ -87,7 +90,7 @@ if __name__ == "__main__":
     datadir = os.path.join(rootdir, args.datadir)
     dataset_name = args.datadir
 
-    logdir = os.path.join(basedir, 'lightning_logs', 'binary', dataset_name)
+    logdir = os.path.join(basedir, 'lightning_logs', "binary_{}".format(args.limit), dataset_name)
 
     # # Instantiate Model
     model = ResNetClassifier(
@@ -135,6 +138,7 @@ if __name__ == "__main__":
         batch_size=args.batch_size, 
         num_workers=4,
         threshold=args.threshold,
+        limit=args.limit,
         val_percentage=0.2,
         img_ext=".tif",
         label_ext=".tif"
