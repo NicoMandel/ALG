@@ -165,6 +165,8 @@ class ALGDataModule(pl.LightningDataModule):
         if self.limit:
             train_count = int(np.floor(self.limit * len(train_dataset)))
             val_count = int(np.floor(self.limit * len(val_dataset)))
+            if val_count < self.batch_size:
+                val_count = self.batch_size
             np.random.seed(self.seed)
             ss_ind_train = np.random.choice(len(train_dataset), train_count)
             ss_ind_val = np.random.choice(len(val_dataset), val_count)
@@ -183,7 +185,7 @@ class ALGDataModule(pl.LightningDataModule):
     
     def val_dataloader(self) -> DataLoader:
         dl = DataLoader(self.val_dataset, batch_size=self.batch_size, num_workers=self.num_workers,
-                        drop_last=True
+                        # drop_last=True
         # pin_memory=True
         )
         return dl
