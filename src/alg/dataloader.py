@@ -84,8 +84,13 @@ class ALGDataset(VisionDataset):
             img = load_tif(img_name)
 
             if self.transforms is not None:
-                transformed = self.transforms(image=img)
-                img = transformed["image"]
+                if isinstance(self.transforms, A.Compose):
+                    transformed = self.transforms(image=img)
+                    img = transformed["image"]
+                else:
+                    img = torch.as_tensor(np.array(img, copy=True))
+                    img = img.permute((2, 0, 1))
+                    img = self.transforms(img)
 
             # Label Loading
             label_name = self.label_dir / (fname + self.label_ext)

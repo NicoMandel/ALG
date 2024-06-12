@@ -112,7 +112,13 @@ class ResNetClassifier(pl.LightningModule):
         missing_keys, unexpected_keys = self.resnet_model.load_state_dict(new_dict, strict = False)
         return missing_keys, unexpected_keys
     
-    def save_fc(self, name : str):
-        dn = self.logger.save_dir
+    def freeze_backbone(self):
+        for child in list(self.resnet_model.children())[:-1]:
+            for param in child.parameters():
+                param.requires_grad = False
+    
+    def save_fc(self, name : str, logdir : str = None):
+        dn = self.logger.save_dir if logdir is None else logdir
         path = os.path.join(dn, name)
         torch.save(self.resnet_model.fc.state_dict(), path)
+        print("Saved head to: {}".format(path))
