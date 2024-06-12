@@ -27,22 +27,25 @@ def parse_args():
 
     # Optional arguments
     parser.add_argument(
-        "-e", "--ext", help="""File extension for label files""", type=str, default=".txt"
+        "-l", "--logdir", help="""Logging directory to be used as subdirectory of lighting_logs. Defaults to none""", type=str, default=None
     )
     parser.add_argument(
-        "-b", "--batch_size", help="""Batch size to use during testing""", type=int, default=4
+        "-e", "--ext", help="""File extension for label files. default .txt""", type=str, default=".txt"
     )
     parser.add_argument(
-        "-t", "--threshold", help="""Threshold when to define an image as ALG containing""", type=float, default=0.5
+        "-b", "--batch_size", help="""Batch size to use during testing. Default 4""", type=int, default=4
+    )
+    parser.add_argument(
+        "-t", "--threshold", help="""Threshold when to define an image as ALG containing. Default 0.5""", type=float, default=0.5
     )    
     parser.add_argument(
-        "-g", "--gpus", help="""Enables GPU acceleration.""", type=int, default=1
+        "-g", "--gpus", help="""Enables GPU acceleration. Default True""", type=int, default=1
     )
     return parser.parse_args()
 
 def test_model(
         model_path : str, datadir : str, threshold : float = 0.5, fext : str = ".txt", batch_size : int = 4,
-        logger : pl_loggers.TensorBoardLogger = None 
+        logger : pl_loggers.TensorBoardLogger = None , logname : str = None
     ):
     mean = [0.485, 0.456, 0.406]
     std = [0.229, 0.224, 0.225]
@@ -65,11 +68,14 @@ def test_model(
 
     # logger
     if logger is None:
-        logdir=os.path.dirname(os.path.dirname(model_path))
+        basedir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+        logdir=os.path.join(basedir, 'lightning_logs')
+        logdir = os.path.join(logdir, logname) if logname else logdir
+        modelname = os.path.basename(model_path).split('.')[0]
+        dataset_name = datadir.split(os.path.sep)[-2]
+        fn = "-".join([modelname, dataset_name])
         logger = pl_loggers.TensorBoardLogger(
-            # name=model.
-            # TODO - get the name here from the model properties
-            name="ToDo",
+            name=fn,
             save_dir=logdir
         )
     
@@ -95,5 +101,6 @@ if __name__=="__main__":
         args.datadir,
         args.threshold,
         args.ext,
-        args.batch_size
+        args.batch_size,
+        logname=args.logdir
     )
