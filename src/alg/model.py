@@ -117,8 +117,7 @@ class ResNetClassifier(pl.LightningModule):
             for param in child.parameters():
                 param.requires_grad = False
     
-    def save_fc(self, name : str, logdir : str = None):
-        dn = self.logger.save_dir if logdir is None else logdir
-        path = os.path.join(dn, name)
+    def save_fc(self, name : str, dirn):
+        path = os.path.join(dirn, name +'.pt')
         torch.save(self.resnet_model.fc.state_dict(), path)
         print("Saved head to: {}".format(path))

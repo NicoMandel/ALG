@@ -36,6 +36,16 @@ def compute_entropy(data, axis=-1):
         cls = torch
     return cls.sum(-data * cls.log(data + EPSILON2), axis=axis)
 
+class ParallelModule(nn.Sequential):
+    def __init__(self, *args):
+        super(ParallelModule, self).__init__(*args)
+    
+    def forward(self, input):
+        output = []
+        for module in self:
+            output.append(module(input))
+        return torch.cat(output, dim=1)
+
 class SubEnsemble(pl.LightningModule):
     resnets = {
         18: models.resnet18,
@@ -54,7 +64,8 @@ class SubEnsemble(pl.LightningModule):
         lr=1e-3,
         batch_size=16,
         transfer=True,
-        entropy_threshold : float = 0.3
+        entropy_threshold : float = 0.3,
+        heads : list = None,
     ):
         super().__init__()
 
@@ -73,16 +84,28 @@ class SubEnsemble(pl.LightningModule):
         )
         # Using a pretrained ResNet backbone
         self.resnet_model = self.resnets[resnet_version](pretrained=transfer)
-        self.old_fc = self.resnet_model.fc.copy()
+        # self.old_fc = self.resnet_model.fc.copy()
         self.resnet_model.fc = nn.Identity()
 
+        self.from_resnets(*heads)
         # for visulising the model, an example input array is needed
         self.example_input_array = torch.zeros(2,3,256,256)
         self.save_hyperparameters()
 
+    def linear_size(self):
+        bbsq = list(self.resnet_model.children())[-3]
+        bb = list(bbsq.children())[-1]
+        ft = list(bb.children())[-1].num_features
+        return ft
+
+    def freeze(self) -> None:
+        super().freeze()
+        self.freeze_layers()
+        self.freeze_heads()
+
     def freeze_layers(self):
         """
-            Function to freeze all layers -> call after loading from ae
+            Function to freeze all backbone layers -> call after loading from ae
         """
         for child in list(self.resnet_model.children()):
             for param in child.parameters():
@@ -94,9 +117,17 @@ class SubEnsemble(pl.LightningModule):
                 param.requires_grad = False
 
     def forward(self, x):
+        # self._check_device_fcl(x)
         embed =  self.resnet_model(x)
-        y_pred = torch.stack([F.softmax(fcl(embed)) for fcl in self.fc_layers], dim=1)
+        if self.num_classes == 1:
+            y_pred = torch.stack([torch.sigmoid(fcl(embed)) for fcl in self.fc_layers], dim=1)
+        else:
+            y_pred = torch.stack([F.softmax(fcl(embed), dim=1) for fcl in self.fc_layers], dim=1)
         return y_pred
+    
+    def training_step(self, batch, batch_idx):
+        x, y = batch
+        return self.resnet_model(x)
 
     def configure_optimizers(self):
         """
@@ -116,11 +147,11 @@ class SubEnsemble(pl.LightningModule):
         acc = self.acc(preds, y)
         return loss, acc
     
-    def predict_step(self, batch: F.Any, batch_idx: int, dataloader_idx: int = 0) -> F.Any:
+    def predict_step(self, batch, batch_idx: int, dataloader_idx: int = 0):
         x, fname = batch
         y_pred = self.forward(x)
-        entr = compute_entropy(y_pred)
-        return list(zip(fname, entr))
+        entr = compute_entropy(y_pred, axis=1)
+        return list(zip(fname, entr))       
     
     def from_AE(self, AE_model : ResnetAutoencoder):
         """
@@ -133,12 +164,11 @@ class SubEnsemble(pl.LightningModule):
     
     def from_resnets(self, *resnet_models):
         fc_layers = []
+        lin_size = self.linear_size()
         for mdl in resnet_models:
-            fc_l = mdl.fc
-            ll_n = nn.Linear(512, self.num_classes)
-            m_k, un_k = ll_n.load_state_dict(fc_l.state_dict(), strict=False)
+            ll_n = nn.Linear(lin_size, self.num_classes)
+            # n_fc nn.Linear().from_checkpoint()
+            m_k, un_k = ll_n.load_state_dict(torch.load(mdl), strict=False)
             print(f"Missing keys: {m_k}, unknown keys: {un_k}")
-            ll_n.eval()
             fc_layers.append(ll_n)
-        
-        self.fc_layers = fc_layers
+        self.fc_layers = ParallelModule(*fc_layers)
