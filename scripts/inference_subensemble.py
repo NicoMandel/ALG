@@ -26,7 +26,7 @@ def default_arguments():
             "lightning_logs/subensemble/head/3.pt",
             "lightning_logs/subensemble/head/4.pt"
         ],
-        "dataset" : "data/vegetative/test"
+        "dataset" : "data/flowering/test"        
     }
     return args
 
@@ -40,7 +40,7 @@ if __name__=="__main__":
         args["resnet"],
         optimizer="adam",
         lr=1e-3,
-        batch_size=16,
+        batch_size=2,
         transfer=True,
         entropy_threshold=args["entropy_threshold"],
         heads=args["heads"]
@@ -74,7 +74,7 @@ if __name__=="__main__":
         threshold=0.5,
         label_ext=".txt",
     )
-    inf_dl = DataLoader(base_ds, batch_size=12, num_workers=1)
+    inf_dl = DataLoader(base_ds, batch_size=12, num_workers=4)
     
     # 4. run inference and get results out
     logdir = os.path.join(basedir, 'lightning_logs', 'subensemble')

@@ -120,7 +120,7 @@ class SubEnsemble(pl.LightningModule):
         # self._check_device_fcl(x)
         embed =  self.resnet_model(x)
         if self.num_classes == 1:
-            y_pred = torch.stack([torch.sigmoid(fcl(embed)) for fcl in self.fc_layers], dim=1)
+            y_pred = torch.stack([torch.sigmoid(fcl(embed)) for fcl in self.fc_layers], dim=1).squeeze()
         else:
             y_pred = torch.stack([F.softmax(fcl(embed), dim=1) for fcl in self.fc_layers], dim=1)
         return y_pred

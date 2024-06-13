@@ -110,7 +110,7 @@ if __name__=="__main__":
     
     
     fn="head"
-    print("Training on Dataset {}".format(args.datadir))
+    print("Training on Dataset {}".format(args))
     for i in range(args.ens):
         # reset trainer
          # Trainer arguments
