@@ -4,47 +4,10 @@ import torch.nn.functional as F
 import torchvision.models as models
 from torch.optim import SGD, Adam
 from torchmetrics import Accuracy
-import numpy as np
 import pytorch_lightning as pl
+
 from alg.resnet_ae import ResnetAutoencoder
-
-EPSILON = 1e-7
-EPSILON2 = 1e-10
-
-def _negative_log_likelihood_pt(y_true : torch.Tensor, y_pred : torch.Tensor) -> torch.Tensor:
-    y_pred = torch.clamp(y_pred, EPSILON, 1.0-EPSILON)
-    nll = -torch.mean(torch.sum( y_true * torch.log(y_pred) + 1.0 - y_true * torch.log(1.0 - y_pred), axis=-1), axis=-1)
-    return nll
-    
-
-def _negative_log_likelihood_np(y_true : np.ndarray, y_pred : np.ndarray) -> np.ndarray:
-    y_pred = np.clip(y_pred, EPSILON, 1.0 - EPSILON)
-    nll = -np.mean(np.sum( y_true * np.log(y_pred) + 1.0 - y_true * np.log(1.0 - y_pred), axis=-1), axis=-1)
-    return nll
-
-def negative_log_likelihood(y_true : np.ndarray | torch.Tensor, y_pred : np.ndarray | torch.Tensor) -> np.ndarray | torch.Tensor:
-    assert isinstance(y_pred, type(y_true)), "Not equal types. Y true: {}, while Y pred: {}".format(type(y_true), type(y_pred))
-    if isinstance(y_pred, np.ndarray):
-        return _negative_log_likelihood_np(y_true, y_pred)
-    else:
-        return _negative_log_likelihood_pt(y_true, y_pred)
-    
-def compute_entropy(data, axis=-1):
-    if isinstance(data, np.ndarray):
-        cls = np
-    else:
-        cls = torch
-    return cls.sum(-data * cls.log(data + EPSILON2), axis=axis)
-
-class ParallelModule(nn.Sequential):
-    def __init__(self, *args):
-        super(ParallelModule, self).__init__(*args)
-    
-    def forward(self, input):
-        output = []
-        for module in self:
-            output.append(module(input))
-        return torch.cat(output, dim=1)
+from alg.subensemble_utils import ParallelModule, compute_entropy
 
 class SubEnsemble(pl.LightningModule):
     resnets = {
@@ -64,7 +27,7 @@ class SubEnsemble(pl.LightningModule):
         lr=1e-3,
         batch_size=16,
         transfer=True,
-        entropy_threshold : float = 0.3,
+        # entropy_threshold : float = 0.3,
         heads : list = None,
     ):
         super().__init__()
@@ -120,38 +83,25 @@ class SubEnsemble(pl.LightningModule):
         # self._check_device_fcl(x)
         embed =  self.resnet_model(x)
         if self.num_classes == 1:
-            y_pred = torch.stack([torch.sigmoid(fcl(embed)) for fcl in self.fc_layers], dim=1).squeeze()
+            y_pred = torch.stack([(fcl(embed).sigmoid()) for fcl in self.fc_layers], dim=1).squeeze()
         else:
             y_pred = torch.stack([F.softmax(fcl(embed), dim=1) for fcl in self.fc_layers], dim=1)
         return y_pred
-    
-    def training_step(self, batch, batch_idx):
-        x, y = batch
-        return self.resnet_model(x)
 
     def configure_optimizers(self):
         """
             Unnecessary for inference
         """
         return self.optimizer(self.parameters(), lr=self.lr)
-
-    def _step(self, batch):
-        x, y = batch
-        preds = self(x)
-
-        if self.num_classes == 1:
-            preds = preds.flatten()
-            y = y.float()
-
-        loss = self.loss_fn(preds, y)
-        acc = self.acc(preds, y)
-        return loss, acc
     
     def predict_step(self, batch, batch_idx: int, dataloader_idx: int = 0):
-        x, fname = batch
-        y_pred = self.forward(x)
+        x, info = batch
+        y, fname =  info
+        y_pred = self.forward(x)    
+        cls_inds = (y_pred>0.5).int()    # https://stackoverflow.com/questions/58002836/pytorch-1-if-x-0-5-else-0-for-x-in-outputs-with-tensors
+        vote = torch.mode((y_pred>0.5).int() , dim=1).values         # https://stackoverflow.com/questions/67510845/given-multiple-prediction-vectors-how-to-efficiently-obtain-the-label-with-most
         entr = compute_entropy(y_pred, axis=1)
-        return list(zip(fname, entr))       
+        return list(zip(fname, y, vote, cls_inds, entr))       
     
     def from_AE(self, AE_model : ResnetAutoencoder):
         """
@@ -166,9 +116,10 @@ class SubEnsemble(pl.LightningModule):
         fc_layers = []
         lin_size = self.linear_size()
         for mdl in resnet_models:
+            print("Loading head from {}".format(mdl))
             ll_n = nn.Linear(lin_size, self.num_classes)
             # n_fc nn.Linear().from_checkpoint()
             m_k, un_k = ll_n.load_state_dict(torch.load(mdl), strict=False)
-            print(f"Missing keys: {m_k}, unknown keys: {un_k}")
+            if m_k or un_k:  print(f"Missing keys: {m_k}, unknown keys: {un_k}")
             fc_layers.append(ll_n)
         self.fc_layers = ParallelModule(*fc_layers)

@@ -11,8 +11,7 @@ from pytorch_lightning import loggers as pl_loggers
 
 from alg.resnet_ae import ResnetAutoencoder
 from alg.subensemble import SubEnsemble
-from alg.dataloader import ALGDataset
-
+from alg.subensemble_dataset import SubensembleDataset
 def default_arguments():
     args = {
         "ae_model" : "RN18-256.ckpt",
@@ -26,7 +25,7 @@ def default_arguments():
             "lightning_logs/subensemble/head/3.pt",
             "lightning_logs/subensemble/head/4.pt"
         ],
-        "dataset" : "data/flowering/test"        
+        "dataset" : "data/combined"     # /test        
     }
     return args
 
@@ -42,7 +41,7 @@ if __name__=="__main__":
         lr=1e-3,
         batch_size=2,
         transfer=True,
-        entropy_threshold=args["entropy_threshold"],
+        # entropy_threshold=args["entropy_threshold"],
         heads=args["heads"]
     )
 
@@ -52,8 +51,7 @@ if __name__=="__main__":
     print("Loading autoencoder from: {}".format(modelpath))
     resn_ae = ResnetAutoencoder.load_from_checkpoint(checkpoint_path = modelpath)
     missing_keys, unexp_keys = subens_model.from_AE(resn_ae)
-    print("Missing Layers: {}".format(missing_keys))
-    print("Unexpected Layers: {}".format(unexp_keys))
+    if missing_keys or unexp_keys: print("Missing Layers: {},\n\nUnexpected Layers: {}".format(missing_keys, unexp_keys))
 
     # 2. load the heads
     subens_model.freeze()
@@ -67,14 +65,15 @@ if __name__=="__main__":
         torch_tfs.ConvertImageDtype(torch.float),
         torch_tfs.Normalize(mean, std)        
     ])
-    base_ds = ALGDataset(
+    base_ds = SubensembleDataset(
         root=args["dataset"],
         transforms=tfs,
         num_classes=args["num_classes"],
         threshold=0.5,
         label_ext=".txt",
+        load_names=True,
     )
-    inf_dl = DataLoader(base_ds, batch_size=12, num_workers=4)
+    inf_dl = DataLoader(base_ds, batch_size=36, num_workers=4)
     
     # 4. run inference and get results out
     logdir = os.path.join(basedir, 'lightning_logs', 'subensemble')
