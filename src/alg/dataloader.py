@@ -39,6 +39,19 @@ def load_txt(fpath : str) -> float:
         val = float(f.read().rstrip())
     return val
 
+def _clean_mask(mask : np.ndarray) -> np.ndarray:
+    """
+        Function to clean loading artifacts from mask, when values are larger than 0, they get allocated to 127
+    """
+    mask[(mask > 0) & (mask < 255)] = 127
+    return mask
+
+def _convert_label(label : np.ndarray | float, threshold : float) -> np.ndarray:
+    if isinstance(label, np.ndarray):
+        return 1 if ((np.count_nonzero(label == 0) / label.size) > threshold) else 0
+    else:
+        return 1 if label > threshold else 0
+
 class ALGDataset(VisionDataset):
     
     def __init__(self, root: str, transforms = None, transform = None, target_transform = None,
@@ -102,23 +115,11 @@ class ALGDataset(VisionDataset):
             label = self.label_load_fn(label_name)
             if self.threshold is not None:
                 if self._isimg:
-                    label = self._clean_mask(mask=label)
-                label = self._convert_label(label)
+                    label = _clean_mask(mask=label)
+                label = _convert_label(label, self.threshold)
 
             return img, label
     
-    def _clean_mask(self, mask : np.ndarray) -> np.ndarray:
-        """
-            Function to clean loading artifacts from mask, when values are larger than 0, they get allocated to 127
-        """
-        mask[(mask > 0) & (mask < 255)] = 127
-        return mask
-
-    def _convert_label(self, label : np.ndarray | float) -> np.ndarray:
-        if isinstance(label, np.ndarray):
-            return 1 if ((np.count_nonzero(label == 0) / label.size) > self.threshold) else 0
-        else:
-            return 1 if label > self.threshold else 0
 
 class ALGDataModule(pl.LightningDataModule):
     """
