@@ -117,7 +117,8 @@ class ResNetClassifier(pl.LightningModule):
             for param in child.parameters():
                 param.requires_grad = False
     
-    def save_fc(self, name : str, dirn):
+    def save_fc(self, name : str, dirn) -> str:
         path = os.path.join(dirn, name +'.pt')
         torch.save(self.resnet_model.fc.state_dict(), path)
         print("Saved head to: {}".format(path))
+        return path

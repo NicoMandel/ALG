@@ -1,6 +1,7 @@
 from argparse import ArgumentParser
 from pathlib import Path
-from PIL import Image
+import os.path
+from PIL.Image import Image
 import numpy as np
 from alg.ae_dataloader import load_image, IMG_EXT
 import matplotlib.pyplot as plt
@@ -39,11 +40,10 @@ def parse_args():
     )
     return parser.parse_args()
 
-if __name__=="__main__":
-    args = parse_args()
 
+def crop_dataset(input_dirs : list, n : int, output_dir : str, crop_size : int = 256, extension : str = "png") :
     fdirs = {}
-    for input_dir in args.input:
+    for input_dir in input_dirs:
         ind = Path(input_dir)
         img_list = []
         for ext in IMG_EXT:
@@ -54,7 +54,7 @@ if __name__=="__main__":
         print("Found {} images in directory: {}".format(len(img_list), input_dir))
     
     key_arr = np.array(list(fdirs.keys()))
-    for i in range(args.n):
+    for i in range(n):
         k_c = np.random.choice(key_arr)
         f_la = np.array(fdirs[k_c])
         f_c = np.random.choice(f_la)
@@ -62,17 +62,25 @@ if __name__=="__main__":
         imf = Path(k_c) / f_c
         img = load_image(imf)
         w, h = img.size
-        top = np.random.randint(0, h-args.size)
-        left = np.random.randint(0, w-args.size)
-        crop = img.crop((left, top, left+args.size, top+args.size))
+        top = np.random.randint(0, h-crop_size)
+        left = np.random.randint(0, w-crop_size)
+        crop = img.crop((left, top, left+crop_size, top+crop_size))
         print(k_c)
         print(crop.size)
-        cropname = f"{Path(f_c).stem}_{top}_{left}" + "." + args.extension
-        if args.output:
-            pass
+        cropname = f"{Path(f_c).stem}_{top}_{left}" + "." + extension
+        if output_dir:
+            output_f = Path(output_dir) / cropname
+            crop.save(str(output_f), mode="RGB")
         else:
             plt.imshow(crop)
             plt.title(cropname)
             plt.show()
 
+
+if __name__=="__main__":
+    args = parse_args()
+
+    crop_dataset(args.input, args.n, args.output, args.size, args.extension)
+
+    
     

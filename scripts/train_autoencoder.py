@@ -1,5 +1,6 @@
 
 import os.path
+from argparse import ArgumentParser
 import torch
 
 import pytorch_lightning as pl
@@ -13,39 +14,51 @@ from alg.ae_dataloader import ALGRAWDataModule
 
 # using torchvision only transforms: https://pytorch.org/vision/0.13/transforms.html 
 
-if __name__=="__main__":
-    basedir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-    pl.seed_everything(42)
+def parse_args(defdir : str):
+    resdir = os.path.join(defdir, 'lightning_logs')
+    parser = ArgumentParser()
+    # Required arguments
+    parser.add_argument(
+        "datadir", help="""Path to root data folder""", type=str
+    )
+    parser.add_argument(
+        "output", help="""Output file location. .txt file, where the name of the best autoencoder model will be stored""", type=str
+    )
 
+    # optional arguments
+    parser.add_argument("-n", "--num_epochs", help="""Number of Epochs to Run.""", type=int, default=500)
+    parser.add_argument(
+        "-s", "--size", help="""Size of images to use for autoencoder. Smaller than 256. defaults to 32""", type=int, default=32,
+    )
+    return parser.parse_args()
+
+def train_autoencoder(size : int, datadir : str, logdir : str) -> str:
     # model
-    ae = ResnetAutoencoder(18, True, width=256, height=256)
-    name = str(ae) + "_alg256_256_Ident"
+    ae = ResnetAutoencoder(18, True, width=size, height=size)
+    name = str(ae) + "_alg256_{}_Ident".format(size)
 
     # Dataset
     # Transformations applied on each image => only make them a tensor
     # transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
     mean = (0.5,)
     std = (0.5,)
-    tfs = torch_tfs.Compose([
-        # torch_tfs.RandomCrop(32,32),
-        torch_tfs.PILToTensor(),
-        torch_tfs.ConvertImageDtype(torch.float),
-        torch_tfs.Normalize(mean, std)        
-    ])
+    _tf = [torch_tfs.RandomCrop(size, size)] if size != 256 else []
+    _tf.append([torch_tfs.PILToTensor(),
+            torch_tfs.ConvertImageDtype(torch.float),
+            torch_tfs.Normalize(mean, std)])
+    tfs = torch_tfs.Compose(
+        _tf
+    )
   
-    datadir = os.path.join(basedir, 'data', '256')
     train_datamod = ALGRAWDataModule(root=datadir, transforms=tfs, batch_size=256, num_workers=20)
 
     # Loading the training dataset. We need to split it into a training and validation part
     # pl.seed_everything(42)
 
     # Logger
-    logdir = os.path.join(basedir, 'lightning_logs', 'ae')
     logger = pl_loggers.TensorBoardLogger(save_dir=logdir, name=name)
     log_imgs = torch.stack([train_datamod.default_dataset[i][0] for i in range(8)], dim=0)
-
+    checkpoint_callback = ModelCheckpoint(save_weights_only=True, save_top_k=1)
     trainer = pl.Trainer(
         accelerator="gpu",
         devices=[0],
@@ -54,7 +67,7 @@ if __name__=="__main__":
         logger=logger,
         # fast_dev_run=True,
         callbacks=[
-            ModelCheckpoint(save_weights_only=True, save_top_k=1),
+            checkpoint_callback,
             GenerateCallback(log_imgs, every_n_epochs=50),
             LearningRateMonitor("epoch")
         ],
@@ -68,6 +81,25 @@ if __name__=="__main__":
     # training
     trainer.fit(ae, train_datamod)
 
+    best_path = checkpoint_callback.best_model_path
+    return best_path
+
+if __name__=="__main__":
+    args = parse_args()
+    basedir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    pl.seed_everything(42)
+
+    datadir = args.datadir
+    ds_name = os.path.basename(args.datadir)
+    logdir = os.path.join(basedir, 'lightning_logs', 'ae', ds_name)
+
+    best_path = train_autoencoder(32, datadir, logdir)
+    with open(args.output, "w") as f:
+        f.write(best_path)
+    print("Written best path to: {}".format(args.output))
+    
     # testing
     # val_result = trainer.test(ae, dataloaders=val_loader, verbose=False)
     # test_result = trainer.test(ae, dataloaders=test_loader, verbose=False)
