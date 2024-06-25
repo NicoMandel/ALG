@@ -16,7 +16,7 @@ class SubensembleDataset(VisionDataset):
     def __init__(self, root: str, transforms = None, transform = None, target_transform = None,
                  img_folder : str = "images", label_folder = "labels",
                  num_classes : int = 3, img_ext = ".tif", label_ext=".tif",
-                 threshold : float = None, load_names : bool = False
+                 threshold : float = None, load_true : bool = False
                  ) -> None:
         super().__init__(root, transforms, transform, target_transform)
 
@@ -36,7 +36,7 @@ class SubensembleDataset(VisionDataset):
             raise ValueError("Unknown Label Extension")
 
         self.threshold = threshold
-        self.load_names = load_names
+        self.load_true = load_true
 
         # self.img_list = list(p.resolve().stem for p in self.img_dir.glob("**/*") if p.suffix in IMG_EXT)            # potentially replace by x.stem
         self.img_list = list([x.stem for x in self.img_dir.glob("*"+img_ext)])
@@ -74,7 +74,7 @@ class SubensembleDataset(VisionDataset):
                     label = _clean_mask(mask=label)
                 label = _convert_label(label, self.threshold)
 
-            if self.load_names:
-                label = (label, fname)
+            if self.load_true:
+                fname = (fname, label)
 
-            return img, label
+            return img, fname
