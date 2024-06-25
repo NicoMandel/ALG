@@ -25,16 +25,15 @@ class SubEnsemble(pl.LightningModule):
         resnet_version,
         optimizer="adam",
         lr=1e-3,
-        batch_size=16,
         transfer=True,
         # entropy_threshold : float = 0.3,
         heads : list = None,
+        load_true : bool = False,
     ):
         super().__init__()
 
         self.num_classes = num_classes
         self.lr = lr
-        self.batch_size = batch_size
 
         self.optimizer = self.optimizers[optimizer]
         # instantiate loss criterion
@@ -51,6 +50,7 @@ class SubEnsemble(pl.LightningModule):
         self.resnet_model.fc = nn.Identity()
 
         self.from_resnets(*heads)
+        self.load_true = load_true
         # for visulising the model, an example input array is needed
         self.example_input_array = torch.zeros(2,3,256,256)
         self.save_hyperparameters()
@@ -96,13 +96,30 @@ class SubEnsemble(pl.LightningModule):
     
     def predict_step(self, batch, batch_idx: int, dataloader_idx: int = 0):
         x, info = batch
-        y, fname =  info
+        if self.load_true:
+            fname, label = info
+        # y, fname =  info
         y_pred = self.forward(x)    
         cls_inds = (y_pred>0.5).int()    # https://stackoverflow.com/questions/58002836/pytorch-1-if-x-0-5-else-0-for-x-in-outputs-with-tensors
         vote = torch.mode((y_pred>0.5).int() , dim=1).values         # https://stackoverflow.com/questions/67510845/given-multiple-prediction-vectors-how-to-efficiently-obtain-the-label-with-most
         entr = compute_entropy(y_pred, axis=1)
-        return list(zip(fname, y, vote, cls_inds, entr))       
+        if self.load_true:
+            ret_d = dict(zip(fname, zip(vote.detach().cpu().numpy(), cls_inds.detach().cpu().numpy(), entr.detach().cpu().numpy(), label.detach().cpu().numpy())))
+        else:
+            ret_d = dict(zip(fname, zip(vote.detach().cpu().numpy(), cls_inds.detach().cpu().numpy(), entr.detach().cpu().numpy())))
+        # return list(zip(fname, y, vote, cls_inds, entr))       
+        return ret_d
     
+    def test_step(self, batch, batch_idx : int, dataloader_idx : int = 0):
+        x, info = batch
+        # if self.load_true: # always true
+        _, y = info
+        y_pred = self.forward(x)
+        vote = torch.mode((y_pred>0.5).int() , dim=1).values
+        acc = self.acc(vote, y.int())
+        # perform logging
+        self.log("test_acc", acc, on_step=True, prog_bar=True, logger=True)
+
     def from_AE(self, AE_model : ResnetAutoencoder):
         """
             Function to update the weights to that of a corresponding Autoencoder 
