@@ -3,6 +3,7 @@
 # tutorial: https://lightning.ai/docs/pytorch/stable/notebooks/course_UvA-DL/04-inception-resnet-densenet.html
 import os.path
 import torch
+import numpy as np
 from torchvision import transforms as torch_tfs
 from torch.utils.data import DataLoader, Subset
 import pandas as pd
@@ -28,7 +29,10 @@ def default_arguments(basedir : str):
     }
     return args
 
-def inference_subensemble(mdl_pths : list, dataset_path : str, model_settings : dict, logdir : str, load_true : bool = False) -> pd.DataFrame:
+def inference_subensemble(mdl_pths : list, dataset_path : str, model_settings : dict, logdir : str,
+                          img_folder : str = "images", label_folder : str = "labels",
+                          subset_n : int = None,
+                            load_true : bool = False) -> pd.DataFrame:
     subens_model =   SubEnsemble(
         model_settings["num_classes"],
         18,
@@ -46,21 +50,23 @@ def inference_subensemble(mdl_pths : list, dataset_path : str, model_settings : 
     mean = (0.5,)
     std = (0.5,)
     tfs = torch_tfs.Compose([
-        # torch_tfs.RandomCrop(32,32),
-        # torch_tfs.PILToTensor(),
         torch_tfs.ConvertImageDtype(torch.float),
         torch_tfs.Normalize(mean, std)        
     ])
     base_ds = SubensembleDataset(
         root=dataset_path,
         transforms=tfs,
-        num_classes=args["num_classes"],
+        num_classes=model_settings["num_classes"],
         threshold=0.5,
+        img_folder=img_folder,
+        label_folder=label_folder,
         # label_ext=".txt",
         load_true=load_true,
     )
-    subset = Subset(base_ds, range(100))
-    inf_dl = DataLoader(subset, batch_size=model_settings["bs"], num_workers=4)
+    if subset_n:
+        ds_inds = np.random.choice(len(base_ds), subset_n)
+        base_ds = Subset(base_ds, ds_inds)
+    inf_dl = DataLoader(base_ds, batch_size=model_settings["bs"], num_workers=4)
     
     # 4. run inference and get results out
     trainer_args = {

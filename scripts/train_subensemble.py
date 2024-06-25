@@ -71,14 +71,32 @@ def parse_args(defdir):
     )
     return parser.parse_args()
 
-def train_subensemble(backbone_path : str, logdir : str, dataset : VisionDataset,  model_settings: dict, n : int = 5) -> list[str]:
+def train_subensemble(backbone_path : str, logdir : str, dataset_path : str,  model_settings: dict, n : int = 5, subsample : float = None) -> list[str]:
     fn="head"
     resn_ae = ResnetAutoencoder.load_from_checkpoint(checkpoint_path = backbone_path)
-    print("Loading autoencoder from: {}".format(modelpath))
+    print("Loading autoencoder from: {}".format(backbone_path))
 
     model_paths = [backbone_path]
+    mean = (0.5,)
+    std = (0.5,)
+    tfs = torch_tfs.Compose([
+        torch_tfs.ConvertImageDtype(torch.float),
+        torch_tfs.Normalize(mean, std)        
+    ])
+    base_ds = ALGDataset(
+        root=dataset_path,
+        transforms=tfs,
+        num_classes=model_settings["num_classes"],
+        threshold=0.5
+    )
+    if subsample:
+        # np.random.seed(0)       # to always get the same subset!
+        ds_count = int(np.floor(subsample * len(base_ds)))
+        ds_inds = np.random.choice(len(base_ds), ds_count)
+        base_ds = Subset(base_ds, ds_inds)
+
     print("Training {} heads on dataset of length {} for {} epochs".format(
-        n, len(dataset), model_settings["epochs"]
+        n, len(base_ds), model_settings["epochs"]
     ))
     for i in range(n):
         # reset trainer
@@ -109,7 +127,6 @@ def train_subensemble(backbone_path : str, logdir : str, dataset : VisionDataset
         trainer.logger._default_hp_metric = None    # none needed
         
         # reload model
-
         model = ResNetClassifier(
             num_classes=model_settings["num_classes"],
             resnet_version=18,
@@ -158,30 +175,8 @@ if __name__=="__main__":
 
     # weights from Autoencoder
     modeldir = os.path.join(basedir, 'models',  'ae')
-    modelpath = os.path.realpath(os.path.join(modeldir, args.ae_model))
-
-    # 2. initialise a dataset for training
-    mean = (0.5,)
-    std = (0.5,)
-    tfs = torch_tfs.Compose([
-        # torch_tfs.RandomCrop(32,32),
-        # torch_tfs.PILToTensor(),
-        torch_tfs.ConvertImageDtype(torch.float),
-        torch_tfs.Normalize(mean, std)        
-    ])
-    base_ds = ALGDataset(
-        root=args.datadir,
-        transforms=tfs,
-        num_classes=args.num_classes,
-        threshold=0.5
-    )
-
-    # Subsampling the dataset to only hold some percentage of training data - low volume!
-    np.random.seed(0)       # to always get the same subset!
-    if args.limit:
-        ds_count = int(np.floor(args.limit * len(base_ds)))
-        ds_inds = np.random.choice(len(base_ds), ds_count)
-        base_ds = Subset(base_ds, ds_inds)
+    modelpath = os.path.realpath(os.path.join(modeldir, args.ae_model))  
+    
     
     model_settings = {
         "epochs" : args.epochs,
@@ -192,7 +187,7 @@ if __name__=="__main__":
     }
 
     model_paths = train_subensemble(
-        modelpath, logdir, base_ds, 
+        modelpath, logdir, datadir, subsample=args.limit 
     )
     
     with open(args.output, 'w') as f:

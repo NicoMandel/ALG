@@ -43,9 +43,11 @@ def train_autoencoder(size : int, datadir : str, logdir : str) -> str:
     mean = (0.5,)
     std = (0.5,)
     _tf = [torch_tfs.RandomCrop(size, size)] if size != 256 else []
-    _tf.append([torch_tfs.PILToTensor(),
-            torch_tfs.ConvertImageDtype(torch.float),
-            torch_tfs.Normalize(mean, std)])
+    _tf += [
+        torch_tfs.PILToTensor(),
+        torch_tfs.ConvertImageDtype(torch.float),
+        torch_tfs.Normalize(mean, std)
+        ]
     tfs = torch_tfs.Compose(
         _tf
     )
@@ -58,11 +60,16 @@ def train_autoencoder(size : int, datadir : str, logdir : str) -> str:
     # Logger
     logger = pl_loggers.TensorBoardLogger(save_dir=logdir, name=name)
     log_imgs = torch.stack([train_datamod.default_dataset[i][0] for i in range(8)], dim=0)
-    checkpoint_callback = ModelCheckpoint(save_weights_only=True, save_top_k=1)
+    checkpoint_callback = ModelCheckpoint(
+        dirpath=logdir,
+        filename=name+"-{epoch}-{val_acc:0.2f}",
+        save_weights_only=True,
+        save_top_k=1
+        )
     trainer = pl.Trainer(
         accelerator="gpu",
         devices=[0],
-        max_epochs=500,
+        max_epochs=10,  #! change back
         precision=32,
         logger=logger,
         # fast_dev_run=True,

@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import shutil
 import numpy as np
 import torch
@@ -15,6 +16,30 @@ from inference_subensemble import inference_subensemble
 def get_subdirs(dirname : str) -> list[str]:
     return [os.path.join(dirname, name) for name in os.listdir(dirname) if os.path.isdir(os.path.join(dirname, name))]
 
+def copy_img_and_label(n : int | list, input_basedir : str, output_basedir : str, i_imgs : str = "input_images", i_labels : str = "mask_images", o_imgs : str = "images", o_labels : str = "labels", fext : str = ".tif"):
+    input_imgdir = Path(input_basedir) / i_imgs
+    input_labeldir = Path(input_basedir) / i_labels
+    
+    output_imgdir = Path(output_basedir) / o_imgs
+    output_labeldir = Path(output_basedir) / o_labels
+
+    if isinstance(n, int):
+        img_list = list([x.stem for x in input_imgdir.glob("*" + fext)])
+        img_ids = np.random.choice(img_list, n)
+    else:
+        img_ids = n
+    
+    for img_id in img_ids:
+        inp_img_f = input_imgdir / (img_id + fext)
+        inp_lab_f = input_labeldir / (img_id + fext)
+        outp_img_f = output_imgdir / (img_id + fext)
+        outp_lab_f = output_labeldir / (img_id + fext)
+        shutil.copy2(inp_img_f, outp_img_f)
+        shutil.copy2(inp_lab_f, outp_lab_f)
+    print("Copied {} images and associated label files from: {} to: {}".format(
+        len(img_ids), input_basedir, output_basedir
+    ))
+
 if __name__=="__main__":
     np.random.seed(0)
     pl.seed_everything(0)
@@ -29,18 +54,16 @@ if __name__=="__main__":
         os.path.join(sites_basedir, "site4_TSR")
     ]
     # start with Site 1 - unlabeled images + 100 labeled images
-    site1_crops_dir = os.path.join(datadir, 'site1_crops')
     site_1_baseraw = os.path.join(sites_dirs[0], 'raw')
     site1_rawdirs = get_subdirs(site_1_baseraw)
-    raw_output = os.path.join(datadir, 'raw')
-    if not os.path.exists(raw_output):
-        os.makedirs(raw_output)
-    crop_dataset(site1_rawdirs, 10, raw_output)
+    raw_root = os.path.join(datadir, 'raw')
+    raw_output = os.path.join(raw_root, 'images')
+    # crop_dataset(site1_rawdirs, 10, raw_output)
 
     # train autoencoder with unlabeled images
     base_logdir = os.path.join(basedir, 'lightning_logs', 'subensemble_pipeline')
     ae_logdir = os.path.join(base_logdir, 'ae')
-    autoencoder_path = train_autoencoder(32, raw_output, ae_logdir)
+    autoencoder_path = train_autoencoder(32, raw_root, ae_logdir)
     print("Trained Autoencoder at: {}".format(
         autoencoder_path
     ))
@@ -48,52 +71,43 @@ if __name__=="__main__":
 
     # get subdataset for labeled heads training 
     labeled_output = os.path.join(datadir, 'labeled')
-    if not os.path.exists(labeled_output):
-        os.makedirs(labeled_output)
+    labeled_imgs = os.path.join(labeled_output, 'images')
+    labeled_labels = os.path.join(labeled_output, 'labels')    
 
-    # init a base dataset
-    mean = (0.5,)
-    std = (0.5,)
-    tfs = torch_tfs.Compose([
-        torch_tfs.ConvertImageDtype(torch.float),
-        torch_tfs.Normalize(mean, std)        
-    ])
-    base_ds = ALGDataset(
-        root=sites_dirs[0],
-        img_folder="input_images",
-        label_folder="mask_images",
-        transforms=tfs,
-        num_classes=1,
-        threshold=0.5
-    )
-    # Subsampling the dataset to only hold some percentage of training data - low volume!
-    ds_count = 100
-    ds_inds = np.random.choice(len(base_ds), ds_count)
-    site_1_ds = Subset(base_ds, ds_inds)
-
+    # copy_img_and_label(100, 
+    #                    sites_dirs[0],
+    #                    labeled_output,
+    #                    )
     # train_subensembles - return position 0 is the autoencoder path, the others are the heads
     model_settings = {
-        "epochs" : 200,
+        "epochs" : 10,          #! change back
         "num_classes" : 1,
         "optim" : "adam",
         "lr" : 1e-3,
         "bs" : 16
     }
     se_logdir = os.path.join(base_logdir, "se_{}".format(0))
-    subens_paths = train_subensemble(autoencoder_path, se_logdir, site_1_ds, model_settings)
+    subens_paths = train_subensemble(autoencoder_path, se_logdir, labeled_output, model_settings)
 
+    load_true = True
     for site in sites_dirs[1:]:
+        print("Training subensemble for site {}".format(site))
         # inference subensemble
         logd = os.path.join(base_logdir, 'inference_{}'.format(site))
-        df = inference_subensemble(subens_paths, site, model_settings, logd)
+        site_p = os.path.join(site, "input_images") # todo - naming convention passthrough
+        df = inference_subensemble(subens_paths, site, model_settings, logd,
+                                   img_folder="input_images", label_folder="mask_images",
+                                 load_true=load_true)
 
-        #! in df we have the vote -> we can use this as categorical cross-entropy vs. training a simple model
-        # Todo - put into test step of the model
         # sort the label files
         df.sort_values('entropy', inplace=True, ascending=False)
         label_names = df.index[:20]
         
-        # copy the label files
+        # calculate the accuracy for the binary case
+        if load_true:            # or: if "label" in df.columns
+            acc = (df["vote"] ==df["label"]).mean()
+
+        # copy the files
         img_dir = os.path.join(site, 'input_images')
         label_dir = os.path.join(site, 'mask_images')
         for ln in label_names:
