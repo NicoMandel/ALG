@@ -1,3 +1,4 @@
+import pandas as pd
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -105,6 +106,8 @@ class SubEnsemble(pl.LightningModule):
         entr = compute_entropy(y_pred, axis=1)
         if self.load_true:
             ret_d = dict(zip(fname, zip(vote.detach().cpu().numpy(), cls_inds.detach().cpu().numpy(), entr.detach().cpu().numpy(), label.detach().cpu().numpy())))
+            acc = self.acc(vote.detach().cpu().float(), label.detach().cpu())
+            # self.log("inference_acc", acc, on_step=True, prog_bar=True, logger=True)
         else:
             ret_d = dict(zip(fname, zip(vote.detach().cpu().numpy(), cls_inds.detach().cpu().numpy(), entr.detach().cpu().numpy())))
         # return list(zip(fname, y, vote, cls_inds, entr))       
@@ -116,7 +119,7 @@ class SubEnsemble(pl.LightningModule):
         _, y = info
         y_pred = self.forward(x)
         vote = torch.mode((y_pred>0.5).int() , dim=1).values
-        acc = self.acc(vote, y.int())
+        acc = self.acc(vote.detach().cpu().float(), y.detach().cpu())
         # perform logging
         self.log("test_acc", acc, on_step=True, prog_bar=True, logger=True)
 

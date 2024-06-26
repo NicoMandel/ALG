@@ -29,16 +29,15 @@ def default_arguments(basedir : str):
     }
     return args
 
-def inference_subensemble(mdl_pths : list, dataset_path : str, model_settings : dict, logdir : str,
+def test_subensemble(mdl_pths : list, dataset_path : str, model_settings : dict, logdir : str,
                           img_folder : str = "images", label_folder : str = "labels",
-                          subset_n : int = None,
-                            load_true : bool = False) -> pd.DataFrame:
+                          subset_n : int = None) -> pd.DataFrame:
     subens_model =   SubEnsemble(
         model_settings["num_classes"],
         18,
         transfer=True,
         heads=mdl_pths[1:],
-        load_true = load_true
+        load_true = True
     )
     print("Loading autoencoder from: {}".format(mdl_pths[0]))
     resn_ae = ResnetAutoencoder.load_from_checkpoint(checkpoint_path = mdl_pths[0])
@@ -61,12 +60,12 @@ def inference_subensemble(mdl_pths : list, dataset_path : str, model_settings : 
         img_folder=img_folder,
         label_folder=label_folder,
         # label_ext=".txt",
-        load_true=load_true,
+        load_true=True,
     )
     if subset_n:
         ds_inds = np.random.choice(len(base_ds), subset_n)
         base_ds = Subset(base_ds, ds_inds)
-    inf_dl = DataLoader(base_ds, batch_size=model_settings["bs"], num_workers=4)
+    test_dl = DataLoader(base_ds, batch_size=model_settings["bs"], num_workers=4)
     
     # 4. run inference and get results out
     trainer_args = {
@@ -80,14 +79,8 @@ def inference_subensemble(mdl_pths : list, dataset_path : str, model_settings : 
     trainer.logger._log_graph = True
     trainer.logger._default_hp_metric = None    # none needed
     # trainer.fit(subens_model, train_dataloaders=inf_dl)
-    results = trainer.predict(subens_model, inf_dl)
-    dld = {}
-    [dld.update(a) for a in results]
-    columns = ["vote", "class_indices", "entropy"]
-    if load_true: columns.append("label")
-    df = pd.DataFrame.from_dict(dld, orient='index', columns=columns)
-    
-    return df
+    test_acc_epoch = trainer.test(subens_model, test_dl)
+    return test_acc_epoch
 
 if __name__=="__main__":
 
@@ -95,7 +88,7 @@ if __name__=="__main__":
     # get the model
     args = default_arguments(basedir)
     logdir = os.path.join(basedir, 'lightning_logs', 'subensemble')
-    df = inference_subensemble(args["mdl_pths"], args["dataset"], args, logdir, load_true=True)
+    df = test_subensemble(args["mdl_pths"], args["dataset"], args, logdir)
 
     df.sort_values('entropy', inplace=True, ascending=False)
     print(df.head(20))
