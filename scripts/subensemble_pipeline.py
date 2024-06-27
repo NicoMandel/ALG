@@ -62,14 +62,15 @@ if __name__=="__main__":
     crop_dataset(site1_rawdirs, 1000, raw_output)
 
     # train autoencoder with unlabeled images
-    base_logdir = os.path.join(basedir, 'lightning_logs', 'subensemble_pipeline')
-    site_name = os.path.basename(sites_dirs[0])
-    ae_logdir = os.path.join(base_logdir, site_name, "ae")
-    autoencoder_path = train_autoencoder(32, raw_root, ae_logdir)
-    print("Trained Autoencoder at: {}".format(
-        autoencoder_path
-    ))
-    autoencoder_paths = [autoencoder_path]
+    use_subensemble = True # ! factor for strong baseline -> if false, will copy random images -> 
+    base_logdir = os.path.join(basedir, 'lightning_logs', 'subensemble_pipeline' if use_subensemble else "baseline_select")
+    # site_name = os.path.basename(sites_dirs[0])
+    # ae_logdir = os.path.join(base_logdir, site_name, "ae")
+    # autoencoder_path = train_autoencoder(32, raw_root, ae_logdir)
+    # print("Trained Autoencoder at: {}".format(
+    #     autoencoder_path
+    # ))
+    # autoencoder_paths = [autoencoder_path]
 
     # get subdataset for labeled heads training 
     labeled_output = os.path.join(datadir, 'labeled')
@@ -85,23 +86,45 @@ if __name__=="__main__":
         "lr" : 1e-3,
         "bs" : 16
     }
-    se_logdir = os.path.join(base_logdir, site_name)
-    subens_paths = train_subensemble(autoencoder_path, se_logdir, labeled_output, model_settings)
+    # se_logdir = os.path.join(base_logdir, site_name)
+    # subens_paths = train_subensemble(autoencoder_path, se_logdir, labeled_output, model_settings)
 
     load_true = True
     for site in sites_dirs[1:]:
         site_name = os.path.basename(site)
-        print("Training subensemble for site {}".format(site_name))
-        # inference subensemble
+        print("Generating raw dataset for autoencoder training from site: {}".format(
+            site_name
+        ))
+
+        # generate new raw dataset
+        _rawdir = os.path.join(site, 'raw')
+        input_rawdirs = get_subdirs(_rawdir)
+        crop_dataset(input_rawdirs, 1000, raw_output)
+
+        # train autoencoder - with previous data + "site"
+        print("Completed copying dataset - Training autoencoder for site 0 and site: {}".format(
+            site
+        ))
+        ae_logdir = os.path.join(base_logdir, site_name, "ae")
+        autoenc_path = train_autoencoder(32, raw_root, ae_logdir)
+
+        # train heads with dataset from sites-1 
+        print("Completed training autoencoder - training subensemble heads on labeled dataset from sites previous to {}".format(
+            site
+        ))
+        se_logdir = os.path.join(base_logdir, site_name)
+        subens_paths = train_subensemble(autoenc_path, se_logdir, labeled_output, model_settings)
+
+        # inference subensemble on site
         logd = os.path.join(base_logdir,"inference", site_name)
         site_p = os.path.join(site, "input_images") 
-        print("Starting inference with models: {} on: {}.\nLogging to:{}".format(
-            subens_paths, site_name, logd
+        print("Starting inference on site {} with models: {}.\nLogging to:{}".format(
+            site_name, subens_paths, logd
         ))
         logd_test = os.path.join(base_logdir, "test", site_name)
         res = test_subensemble(subens_paths, site, model_settings, logd_test, img_folder="input_images", label_folder="mask_images")
         df = inference_subensemble(subens_paths, site, model_settings, logd,
-                                   img_folder="input_images", label_folder="mask_images",
+                                img_folder="input_images", label_folder="mask_images",
                                 load_true=load_true)
 
         # sort the label files
@@ -111,21 +134,7 @@ if __name__=="__main__":
         # calculate the accuracy for the binary case
         if load_true:            # or: if "label" in df.columns
             acc = (df["vote"] ==df["label"]).mean()
-            print("Accuracy: {}".format(acc))
+            print("Accuracy: for site: {}: {}".format(site_name, acc))
 
         # copy the files
-        copy_img_and_label(label_names, site, labeled_output)
-
-        # generate new raw dataset
-        _rawdir = os.path.join(site, 'raw')
-        input_rawdirs = get_subdirs(_rawdir)
-        crop_dataset(input_rawdirs, 1000, raw_output)
-        
-        # retrain autoencoder
-        ae_logdir = os.path.join(base_logdir, site_name, "ae")
-        autoenc_path = train_autoencoder(32, raw_root, ae_logdir)
-         
-        # retrain heads with new dataset
-        se_logdir = os.path.join(base_logdir, site_name)
-        subens_paths = train_subensemble(autoenc_path, se_logdir, labeled_output, model_settings)
-        
+        copy_img_and_label(label_names if use_subensemble else 20, site, labeled_output)        
