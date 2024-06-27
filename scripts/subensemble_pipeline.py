@@ -59,12 +59,12 @@ if __name__=="__main__":
     site1_rawdirs = get_subdirs(site_1_baseraw)
     raw_root = os.path.join(datadir, 'raw')
     raw_output = os.path.join(raw_root, 'images')
-    crop_dataset(site1_rawdirs, 10, raw_output)
+    crop_dataset(site1_rawdirs, 1000, raw_output)
 
     # train autoencoder with unlabeled images
     base_logdir = os.path.join(basedir, 'lightning_logs', 'subensemble_pipeline')
     site_name = os.path.basename(sites_dirs[0])
-    ae_logdir = os.path.join(base_logdir, 'ae', site_name)
+    ae_logdir = os.path.join(base_logdir, site_name, "ae")
     autoencoder_path = train_autoencoder(32, raw_root, ae_logdir)
     print("Trained Autoencoder at: {}".format(
         autoencoder_path
@@ -79,13 +79,13 @@ if __name__=="__main__":
     copy_img_and_label(100, sites_dirs[0], labeled_output)
     # train_subensembles - return position 0 is the autoencoder path, the others are the heads
     model_settings = {
-        "epochs" : 200,          #! change back
+        "epochs" : 200,          #! change back to 200
         "num_classes" : 1,
         "optim" : "adam",
         "lr" : 1e-3,
         "bs" : 16
     }
-    se_logdir = os.path.join(base_logdir, "se", site_name)
+    se_logdir = os.path.join(base_logdir, site_name)
     subens_paths = train_subensemble(autoencoder_path, se_logdir, labeled_output, model_settings)
 
     load_true = True
@@ -93,12 +93,12 @@ if __name__=="__main__":
         site_name = os.path.basename(site)
         print("Training subensemble for site {}".format(site_name))
         # inference subensemble
-        logd = os.path.join(base_logdir, "inference_{}".format(site_name))
-        site_p = os.path.join(site, "input_images") # todo - naming convention passthrough
+        logd = os.path.join(base_logdir,"inference", site_name)
+        site_p = os.path.join(site, "input_images") 
         print("Starting inference with models: {} on: {}.\nLogging to:{}".format(
             subens_paths, site_name, logd
         ))
-        logd_test = os.path.join(base_logdir, "test_{}".format(site_name))
+        logd_test = os.path.join(base_logdir, "test", site_name)
         res = test_subensemble(subens_paths, site, model_settings, logd_test, img_folder="input_images", label_folder="mask_images")
         df = inference_subensemble(subens_paths, site, model_settings, logd,
                                    img_folder="input_images", label_folder="mask_images",
@@ -119,13 +119,13 @@ if __name__=="__main__":
         # generate new raw dataset
         _rawdir = os.path.join(site, 'raw')
         input_rawdirs = get_subdirs(_rawdir)
-        crop_dataset(input_rawdirs, 10, raw_output)
+        crop_dataset(input_rawdirs, 1000, raw_output)
         
         # retrain autoencoder
-        ae_logdir = os.path.join(base_logdir, "ae", site_name)
+        ae_logdir = os.path.join(base_logdir, site_name, "ae")
         autoenc_path = train_autoencoder(32, raw_root, ae_logdir)
          
         # retrain heads with new dataset
-        se_logdir = os.path.join(base_logdir, "se", site_name)
+        se_logdir = os.path.join(base_logdir, site_name)
         subens_paths = train_subensemble(autoenc_path, se_logdir, labeled_output, model_settings)
         

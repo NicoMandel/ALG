@@ -66,15 +66,18 @@ def train_autoencoder(size : int, datadir : str, logdir : str) -> str:
         save_weights_only=True,
         save_top_k=1
         )
+    # stopping_callback = pl.callbacks.EarlyStopping(monitor="val_loss", mode="min", patience=20)
+    
     trainer = pl.Trainer(
         accelerator="gpu",
         devices=[0],
-        max_epochs=10,  #! change back
+        max_epochs=500,  #! change back to 500
         precision=32,
         logger=logger,
         # fast_dev_run=True,
         callbacks=[
             checkpoint_callback,
+            # stopping_callback,
             GenerateCallback(log_imgs, every_n_epochs=50),
             LearningRateMonitor("epoch")
         ],
