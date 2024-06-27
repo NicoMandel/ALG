@@ -1,6 +1,6 @@
 from argparse import ArgumentParser
 from pathlib import Path
-import os.path
+from tqdm import tqdm
 from PIL.Image import Image
 import numpy as np
 from alg.ae_dataloader import load_image, IMG_EXT
@@ -54,7 +54,7 @@ def crop_dataset(input_dirs : list, n : int, output_dir : str, crop_size : int =
         print("Found {} images in directory: {}".format(len(img_list), input_dir))
     
     key_arr = np.array(list(fdirs.keys()))
-    for i in range(n):
+    for i in tqdm(range(n), leave=True):
         k_c = np.random.choice(key_arr)
         f_la = np.array(fdirs[k_c])
         f_c = np.random.choice(f_la)
@@ -65,8 +65,8 @@ def crop_dataset(input_dirs : list, n : int, output_dir : str, crop_size : int =
         top = np.random.randint(0, h-crop_size)
         left = np.random.randint(0, w-crop_size)
         crop = img.crop((left, top, left+crop_size, top+crop_size))
-        print(k_c)
-        print(crop.size)
+        # print(k_c)
+        # print(crop.size)
         cropname = f"{Path(f_c).stem}_{top}_{left}" + "." + extension
         if output_dir:
             output_f = Path(output_dir) / cropname
