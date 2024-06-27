@@ -42,7 +42,7 @@ class DecoderBlock(nn.Module):
         super().__init__()
         self.layers = nn.Sequential(
             nn.Conv2d(in_channels, in_channels, kernel_size=3, padding=1),
-            nn.GELU(),
+            nn.ReLU(),
             nn.ConvTranspose2d(in_channels, out_dim, kernel_size=3, output_padding=1, padding=1, stride=2),      # 16 x 16 => 32 x 32
         )
     
@@ -78,22 +78,22 @@ class Decoder256(Dec):
         # input here is a B x 64 x 4 x 4
         self.net = nn.Sequential(
             nn.ConvTranspose2d(2 * c_hid, 2 * c_hid, kernel_size=3, output_padding=1, padding=1, stride=2),  # 64 x 4 x 4 => 64 x 8 x 8
-            nn.GELU(),
+            nn.ReLU(),
             DecoderBlock(2 * c_hid, c_hid), # 64 x 8 x 8 [4096]  -> 32 x 16 x 16 [8192]
-            nn.GELU(),
+            nn.ReLU(),
             nn.ConvTranspose2d(c_hid, c_hid, kernel_size=3, output_padding=1, padding=1, stride=2),  # 32 x 16 x 16 => 32 x 32 x 32
-            nn.GELU(),
+            nn.ReLU(),
             DecoderBlock(c_hid, c_hid // 2),  # 32 x 32 x 32 -> 16 x 64 x 64 [65536]
-            nn.GELU(),
+            nn.ReLU(),
             DecoderBlock(c_hid // 2, c_hid // 4),  # 16 x 64 x 64 [65536] -> 8 x 128 x 128
-            nn.GELU(),
+            nn.ReLU(),
             DecoderBlock(c_hid // 4, num_input_channels),  # 8 x 128 x 128 [131072] -> 3 x 256 x 256 [196608] 
             nn.Tanh(),
         )
 
 class Decoder32(Dec):
 
-    def __init__(self, num_input_channels : int = 3, c_hid : int = 32, latent_dim : int  =512, act_fn : nn.Module = nn.GELU) -> None:
+    def __init__(self, num_input_channels : int = 3, c_hid : int = 32, latent_dim : int  =512, act_fn : nn.Module = nn.ReLU) -> None:
         """
             args:
                 num_input_channels : Number of Channels of the image to reconstruct. For CIFAR, parameter is 3.
