@@ -10,10 +10,10 @@ clean_datadirs() {
 clean_datadirs
 
 # run subensemble
-python scripts/subensemble_pipeline true
+python scripts/subensemble_pipeline.py true
 echo "completed running subensemble with sampling"
 clean_datadirs
-python scripts/subensemble_pipeline false
+python scripts/subensemble_pipeline.py false
 echo "completed running subensemble without sampling"
 clean_datadirs
 
