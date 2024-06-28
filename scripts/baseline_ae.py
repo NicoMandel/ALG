@@ -97,11 +97,11 @@ if __name__=="__main__":
         ))
 
         res = test_model(model_p, site, threshold=model_settings["threshold"], logger=logger,
-                    img_folder="input_images", label_folder="mask_images")
+                    img_folder="input_images", label_folder="mask_images", fext=".tif")
         
         # calculate the accuracy for the binary case
         if load_true:            # or: if "label" in df.columns
-            acc = res 
+            acc = res["test_acc_epoch"]
             print("Accuracy: for site: {}: {}".format(site_name, acc))
 
         # use all labels here for training!
