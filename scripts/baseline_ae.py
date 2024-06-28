@@ -96,8 +96,7 @@ if __name__=="__main__":
             site_name, model_p, logd
         ))
 
-        test_dir = os.path.join(site_name)
-        res = test_model(model_p, test_dir, threshold=model_settings["threshold"], logger=logger,
+        res = test_model(model_p, site, threshold=model_settings["threshold"], logger=logger,
                     img_folder="input_images", label_folder="mask_images")
         
         # calculate the accuracy for the binary case
