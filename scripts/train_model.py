@@ -79,9 +79,9 @@ def parse_args(defdir : str):
     parser.add_argument(
         "--limit", help="""Limit Training and validation Batches - how much data to use as a subset.""", type=float, default=1.0
     )
-    return parser.parse_args()
+    return vars(parser.parse_args())
 
-def train_model(model : pl.LightningModule, args, fn : str, logdir, datadir):
+def train_model(model : pl.LightningModule, model_settings :  dict, fn : str, logdir, datadir):
     # Set up Datamodule - with augmentations
     p = 0.5
     mean = [0.485, 0.456, 0.406]
@@ -114,10 +114,10 @@ def train_model(model : pl.LightningModule, args, fn : str, logdir, datadir):
         img_folder="images",
         label_folder="labels",
         transforms=augmentations,
-        batch_size=args.batch_size, 
+        batch_size=model_settings["batch_size"], 
         num_workers=4,
-        threshold=args.threshold,
-        limit=args.limit,
+        threshold=model_settings["threshold"],
+        limit=model_settings["limit"],
         val_percentage=0.2,
         img_ext=".tif",
         label_ext=".tif"
@@ -136,10 +136,10 @@ def train_model(model : pl.LightningModule, args, fn : str, logdir, datadir):
 
     # Instantiate lightning trainer and train model
     trainer_args = {
-        "accelerator": "gpu" if args.gpus else None,
+        "accelerator": "gpu" if torch.cuda.is_available() else "cpu",
         "devices": [0],
-        "strategy": "dp" if args.gpus > 1 else None,
-        "max_epochs": args.num_epochs,
+        "strategy": "dp" if torch.cuda.is_available() else None,
+        "max_epochs": model_settings["num_epochs"],
         "callbacks": [checkpoint_callback, stopping_callback],
         "precision": 32,
         "logger": pl_loggers.TensorBoardLogger(save_dir=logdir, name=fn),
@@ -158,39 +158,39 @@ def train_model(model : pl.LightningModule, args, fn : str, logdir, datadir):
 
 if __name__ == "__main__":
     basedir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    args = parse_args(basedir)
+    model_settings = parse_args(basedir)
 
     # root data dir
     rootdir = os.path.join(basedir, 'data')
-    datadir = os.path.join(rootdir, args.datadir)
-    dataset_name = args.datadir
+    datadir = os.path.join(rootdir, model_settings["datadir"])
+    dataset_name = model_settings["datadir"]
 
-    logdir = os.path.join(basedir, 'lightning_logs', "binary_{}".format(args.limit), dataset_name)
+    logdir = os.path.join(basedir, 'lightning_logs', "binary_{}".format(model_settings["limit"]), dataset_name)
 
     # # Instantiate Model
     model = ResNetClassifier(
-        num_classes=args.num_classes,
-        resnet_version=args.model,
-        optimizer=args.optimizer,
-        lr=args.learning_rate,
-        batch_size=args.batch_size,
-        transfer=args.transfer,
-        tune_fc_only=args.tune_fc_only,
+        num_classes=model_settings["num_classes"],
+        resnet_version=model_settings["model"],
+        optimizer=model_settings["optimizer"],
+        lr=model_settings["learning_rate"],
+        batch_size=model_settings["batch_size"],
+        transfer=model_settings["transfer"],
+        tune_fc_only=model_settings["tune_fc_only"],
     )
 
     mdl_config = ""
-    if args.transfer:
+    if model_settings["transfer"]:
         mdl_config += "-transfer"
-    if args.tune_fc_only:
+    if model_settings["tune_fc_only"]:
         mdl_config += "-finetune"
-    fn = "resnet{}-{}".format(args.model, mdl_config) + "-" + str(dataset_name)
-    best_path, logger = train_model(model, args, fn, logdir, datadir)
+    fn = "resnet{}-{}".format(model_settings["model"], mdl_config) + "-" + str(dataset_name)
+    best_path, logger = train_model(model, model_settings, fn, logdir, datadir)
 
     test_dir = os.path.join(datadir, 'test')
     results = test_model(
         best_path,
         test_dir,
-        threshold=args.threshold,
+        threshold=model_settings["threshold"],
         logger=logger
     )
 

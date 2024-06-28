@@ -87,6 +87,26 @@ def parse_args(defdir : str):
     )
     return parser.parse_args()
 
+def train_resnet_from_ae(ae_modelpath : str, logdir :  str, model_settings : dict, datadir : str) -> str:
+    model = ResNetClassifier(
+        num_classes=model_settings["num_classes"],
+        resnet_version=model_settings["model_version"],
+        optimizer=model_settings["optimizer"],
+        lr=model_settings["learning_rate"],
+        batch_size=model_settings["batch_size"],
+        transfer=model_settings["transfer"],
+        tune_fc_only=model_settings["tune_fc_only"],
+    )
+    print("Loading autoencoder from: {}".format(ae_modelpath))
+    resn_ae = ResnetAutoencoder.load_from_checkpoint(checkpoint_path = modelpath)
+    missing_keys, unexp_keys = model.from_AE(resn_ae)
+    if missing_keys: print("Missing Layers: {}".format(missing_keys))
+    if unexp_keys: print("Unexpected Layers: {}".format(unexp_keys))
+    best_path, logger = train_model(model, model_settings, "resn_from_ae", logdir, datadir)
+    return best_path, logger
+
+
+
 if __name__ == "__main__":
     basedir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
     args = parse_args(basedir)
