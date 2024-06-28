@@ -1,4 +1,5 @@
 import os
+from argparse import ArgumentParser
 import numpy as np
 import pytorch_lightning as pl
 
@@ -9,7 +10,18 @@ from inference_subensemble import inference_subensemble
 from test_subensemble import test_subensemble
 from alg.utils import get_subdirs, copy_img_and_label
 
+def parse_args():
+    parser = ArgumentParser()
+    # Required arguments
+    parser.add_argument(
+        "use_subensemble",
+        help="""Whether to use subensemble sampling or not - as weak / strong baseline""",
+        type=bool, default=True,
+    )
+    return parser.parse_args()
+
 if __name__=="__main__":
+    args = parse_args()
     np.random.seed(0)
     pl.seed_everything(0)
 
@@ -30,7 +42,7 @@ if __name__=="__main__":
     crop_dataset(site1_rawdirs, 10, raw_output)
 
     # train autoencoder with unlabeled images
-    use_subensemble = True # ! factor for strong baseline -> if false, will copy random images -> 
+    use_subensemble = args.use_subensemble # ! factor for strong baseline -> if false, will copy random images -> 
     base_logdir = os.path.join(basedir, 'lightning_logs', "eccv", 'subensemble_pipeline' if use_subensemble else "baseline_select")
     # site_name = os.path.basename(sites_dirs[0])
     # ae_logdir = os.path.join(base_logdir, site_name, "ae")
