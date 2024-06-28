@@ -31,7 +31,7 @@ if __name__=="__main__":
     # use all labels here for training!
     input_imgdir = Path(sites_dirs[0]) / "input_images"
     img_list = list([x.stem for x in input_imgdir.glob("*" + ".tif")])
-    copy_img_and_label(img_list, sites_dirs[0], labeled_output)  
+    copy_img_and_label(100, sites_dirs[0], labeled_output)  # ! img_list
     model_settings = {
         "num_epochs" : 5,          #! change back to 200
         "model_version" : 18,
@@ -46,7 +46,7 @@ if __name__=="__main__":
     }
     model = ResNetClassifier(
         num_classes=model_settings["num_classes"],
-        resnet_version=model_settings["model"],
+        resnet_version=model_settings["model_version"],
         optimizer=model_settings["optim"],
         lr=model_settings["lr"],
         batch_size=model_settings["bs"],
@@ -64,7 +64,7 @@ if __name__=="__main__":
 
         # train model with labeled dataset from sites-1 
         model_logdir = os.path.join(base_logdir, site_name)
-        model_p, logger = train_model(model, model_logdir, model_settings, labeled_output)
+        model_p, logger = train_model(model, model_settings, "resnet_{}".format(model_settings["model_version"]),  model_logdir, labeled_output)
 
         # test model on new site
         site_p = os.path.join(site, "input_images") 
@@ -77,10 +77,10 @@ if __name__=="__main__":
         
         # calculate the accuracy for the binary case
         if load_true:            # or: if "label" in df.columns
-            acc = res["test_acc_epoch"]
+            acc = res[0]["test_acc_epoch"]
             print("Accuracy: for site: {}: {}".format(site_name, acc))
 
         # use all labels here for training!
         input_imgdir = Path(site) / "input_images"
         img_list = list([x.stem for x in input_imgdir.glob("*" + ".tif")])
-        copy_img_and_label(img_list, site, labeled_output)        
+        copy_img_and_label(100, site, labeled_output)   # ! img_list        

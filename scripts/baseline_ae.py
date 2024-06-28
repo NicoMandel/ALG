@@ -101,7 +101,7 @@ if __name__=="__main__":
         
         # calculate the accuracy for the binary case
         if load_true:            # or: if "label" in df.columns
-            acc = res["test_acc_epoch"]
+            acc = res[0]["test_acc_epoch"]
             print("Accuracy: for site: {}: {}".format(site_name, acc))
 
         # use all labels here for training!

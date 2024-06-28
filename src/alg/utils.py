@@ -2,6 +2,7 @@
 import os.path
 from pathlib import Path
 import shutil
+from tqdm import tqdm
 import yaml
 import numpy as np
 import torch
@@ -78,7 +79,7 @@ def copy_img_and_label(n : int | list, input_basedir : str, output_basedir : str
     else:
         img_ids = n
     
-    for img_id in img_ids:
+    for img_id in tqdm(img_ids):
         inp_img_f = input_imgdir / (img_id + fext)
         inp_lab_f = input_labeldir / (img_id + fext)
         outp_img_f = output_imgdir / (img_id + fext)
