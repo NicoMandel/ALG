@@ -45,7 +45,8 @@ def parse_args():
 
 def test_model(
         model_path : str, datadir : str, threshold : float = 0.5, fext : str = ".txt", batch_size : int = 4,
-        logger : pl_loggers.TensorBoardLogger = None , logname : str = None
+        logger : pl_loggers.TensorBoardLogger = None , logname : str = None,
+        img_folder : str = "images", label_folder: str = "labels"
     ):
     mean = [0.485, 0.456, 0.406]
     std = [0.229, 0.224, 0.225]
@@ -58,7 +59,9 @@ def test_model(
         root=datadir,
         label_ext=fext,
         threshold=threshold,
-        transforms=transformations
+        transforms=transformations,
+        img_folder=img_folder,
+        label_folder=label_folder
     )
     bs = batch_size if batch_size < len(alg_test_ds) else len(alg_test_ds) // 2
     dl = DataLoader(alg_test_ds, batch_size=bs, num_workers=4, drop_last=False)

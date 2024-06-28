@@ -16,6 +16,7 @@ from pytorch_lightning import loggers as pl_loggers
 from alg.model import ResNetClassifier
 from alg.resnet_ae import ResnetAutoencoder
 from alg.dataloader import ALGDataModule
+from alg.utils import model_settings_from_args
 from test_model import test_model
 from train_model import train_model
 
@@ -91,14 +92,14 @@ def train_resnet_from_ae(ae_modelpath : str, logdir :  str, model_settings : dic
     model = ResNetClassifier(
         num_classes=model_settings["num_classes"],
         resnet_version=model_settings["model_version"],
-        optimizer=model_settings["optimizer"],
-        lr=model_settings["learning_rate"],
-        batch_size=model_settings["batch_size"],
+        optimizer=model_settings["optim"],
+        lr=model_settings["lr"],
+        batch_size=model_settings["bs"],
         transfer=model_settings["transfer"],
         tune_fc_only=model_settings["tune_fc_only"],
     )
     print("Loading autoencoder from: {}".format(ae_modelpath))
-    resn_ae = ResnetAutoencoder.load_from_checkpoint(checkpoint_path = modelpath)
+    resn_ae = ResnetAutoencoder.load_from_checkpoint(checkpoint_path = ae_modelpath)
     missing_keys, unexp_keys = model.from_AE(resn_ae)
     if missing_keys: print("Missing Layers: {}".format(missing_keys))
     if unexp_keys: print("Unexpected Layers: {}".format(unexp_keys))
@@ -117,32 +118,17 @@ if __name__ == "__main__":
     dataset_name = args.datadir
 
     logdir = os.path.join(basedir, 'lightning_logs',   "binary_{}".format(args.limit), 'from_ae', dataset_name)
-
-    # # Instantiate Model
-    model = ResNetClassifier(
-        num_classes=args.num_classes,
-        resnet_version=args.model,
-        optimizer=args.optimizer,
-        lr=args.learning_rate,
-        batch_size=args.batch_size,
-        transfer=args.transfer,
-        tune_fc_only=args.tune_fc_only,
-    )
-
-    # updating with weights from Autoencoder
     modeldir = os.path.join(basedir, 'models')
     modelpath = os.path.realpath(os.path.join(modeldir, args.ae_model))
-    print("Loading autoencoder from: {}".format(modelpath))
-    resn_ae = ResnetAutoencoder.load_from_checkpoint(checkpoint_path = modelpath)
-    missing_keys, unexp_keys = model.from_AE(resn_ae)
-    print("Missing Layers: {}".format(missing_keys))
-    print("Unexpected Layers: {}".format(unexp_keys))
-
-    fn = os.path.splitext(os.path.basename(args.ae_model))[0] + str(dataset_name)
-
-    # Getting the best model out
-    best_path, logger = train_model(model, args, fn, logdir, datadir)
-
+    
+    ms = model_settings_from_args(args)
+    best_path, logger = train_resnet_from_ae(
+        ae_modelpath=modelpath,
+        logdir=logdir,
+        model_settings=ms,
+        datadir=datadir
+    )
+    
     test_dir = os.path.join(datadir, 'test')
     results = test_model(
         best_path,

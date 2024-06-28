@@ -14,6 +14,7 @@ from albumentations.pytorch import ToTensorV2
 from pytorch_lightning import loggers as pl_loggers
 
 from alg.model import ResNetClassifier
+from alg.utils import model_settings_from_args
 from alg.dataloader import ALGDataModule
 from test_model import test_model
 
@@ -79,7 +80,7 @@ def parse_args(defdir : str):
     parser.add_argument(
         "--limit", help="""Limit Training and validation Batches - how much data to use as a subset.""", type=float, default=1.0
     )
-    return vars(parser.parse_args())
+    return parser.parse_args()
 
 def train_model(model : pl.LightningModule, model_settings :  dict, fn : str, logdir, datadir):
     # Set up Datamodule - with augmentations
@@ -114,7 +115,7 @@ def train_model(model : pl.LightningModule, model_settings :  dict, fn : str, lo
         img_folder="images",
         label_folder="labels",
         transforms=augmentations,
-        batch_size=model_settings["batch_size"], 
+        batch_size=model_settings["bs"], 
         num_workers=4,
         threshold=model_settings["threshold"],
         limit=model_settings["limit"],
@@ -158,7 +159,8 @@ def train_model(model : pl.LightningModule, model_settings :  dict, fn : str, lo
 
 if __name__ == "__main__":
     basedir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    model_settings = parse_args(basedir)
+    ms = parse_args(basedir)
+    model_settings = model_settings_from_args(ms)
 
     # root data dir
     rootdir = os.path.join(basedir, 'data')
@@ -171,9 +173,9 @@ if __name__ == "__main__":
     model = ResNetClassifier(
         num_classes=model_settings["num_classes"],
         resnet_version=model_settings["model"],
-        optimizer=model_settings["optimizer"],
-        lr=model_settings["learning_rate"],
-        batch_size=model_settings["batch_size"],
+        optimizer=model_settings["optim"],
+        lr=model_settings["lr"],
+        batch_size=model_settings["bs"],
         transfer=model_settings["transfer"],
         tune_fc_only=model_settings["tune_fc_only"],
     )

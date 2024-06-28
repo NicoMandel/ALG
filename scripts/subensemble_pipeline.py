@@ -1,52 +1,20 @@
 import os
-from pathlib import Path
-import shutil
 import numpy as np
-import torch
 import pytorch_lightning as pl
-from torchvision import transforms as torch_tfs
-from torch.utils.data import random_split, DataLoader, Subset
 
-from alg.dataloader import ALGDataset
 from generate_subdataset import crop_dataset
 from train_autoencoder import train_autoencoder
 from train_subensemble import train_subensemble
 from inference_subensemble import inference_subensemble
 from test_subensemble import test_subensemble
-
-def get_subdirs(dirname : str) -> list[str]:
-    return [os.path.join(dirname, name) for name in os.listdir(dirname) if os.path.isdir(os.path.join(dirname, name))]
-
-def copy_img_and_label(n : int | list, input_basedir : str, output_basedir : str, i_imgs : str = "input_images", i_labels : str = "mask_images", o_imgs : str = "images", o_labels : str = "labels", fext : str = ".tif"):
-    input_imgdir = Path(input_basedir) / i_imgs
-    input_labeldir = Path(input_basedir) / i_labels
-    
-    output_imgdir = Path(output_basedir) / o_imgs
-    output_labeldir = Path(output_basedir) / o_labels
-
-    if isinstance(n, int):
-        img_list = list([x.stem for x in input_imgdir.glob("*" + fext)])
-        img_ids = np.random.choice(img_list, n)
-    else:
-        img_ids = n
-    
-    for img_id in img_ids:
-        inp_img_f = input_imgdir / (img_id + fext)
-        inp_lab_f = input_labeldir / (img_id + fext)
-        outp_img_f = output_imgdir / (img_id + fext)
-        outp_lab_f = output_labeldir / (img_id + fext)
-        shutil.copy2(inp_img_f, outp_img_f)
-        shutil.copy2(inp_lab_f, outp_lab_f)
-    print("Copied {} images and associated label files from: {} to: {}".format(
-        len(img_ids), input_basedir, output_basedir
-    ))
+from alg.utils import get_subdirs, copy_img_and_label
 
 if __name__=="__main__":
     np.random.seed(0)
     pl.seed_everything(0)
 
     basedir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    datadir = os.path.join(basedir, 'data', 'reduced_example')
+    datadir = os.path.join(basedir, 'data', "eccv")
     sites_basedir = os.path.expanduser("~/src/csu/data/ALG/sites")
     sites_dirs = [
         os.path.join(sites_basedir, "site1_McD"),
@@ -59,11 +27,11 @@ if __name__=="__main__":
     site1_rawdirs = get_subdirs(site_1_baseraw)
     raw_root = os.path.join(datadir, 'raw')
     raw_output = os.path.join(raw_root, 'images')
-    crop_dataset(site1_rawdirs, 1000, raw_output)
+    crop_dataset(site1_rawdirs, 10, raw_output)
 
     # train autoencoder with unlabeled images
     use_subensemble = True # ! factor for strong baseline -> if false, will copy random images -> 
-    base_logdir = os.path.join(basedir, 'lightning_logs', 'subensemble_pipeline' if use_subensemble else "baseline_select")
+    base_logdir = os.path.join(basedir, 'lightning_logs', "eccv", 'subensemble_pipeline' if use_subensemble else "baseline_select")
     # site_name = os.path.basename(sites_dirs[0])
     # ae_logdir = os.path.join(base_logdir, site_name, "ae")
     # autoencoder_path = train_autoencoder(32, raw_root, ae_logdir)
@@ -80,7 +48,7 @@ if __name__=="__main__":
     copy_img_and_label(100, sites_dirs[0], labeled_output)
     # train_subensembles - return position 0 is the autoencoder path, the others are the heads
     model_settings = {
-        "epochs" : 200,          #! change back to 200
+        "epochs" : 5,          #! change back to 200
         "num_classes" : 1,
         "optim" : "adam",
         "lr" : 1e-3,
@@ -99,7 +67,7 @@ if __name__=="__main__":
         # generate new raw dataset
         _rawdir = os.path.join(site, 'raw')
         input_rawdirs = get_subdirs(_rawdir)
-        crop_dataset(input_rawdirs, 1000, raw_output)
+        crop_dataset(input_rawdirs, 10, raw_output)
 
         # train autoencoder - with previous data + "site"
         print("Completed copying dataset - Training autoencoder for site 0 and site: {}".format(

@@ -71,7 +71,7 @@ def train_autoencoder(size : int, datadir : str, logdir : str) -> str:
     trainer = pl.Trainer(
         accelerator="gpu",
         devices=[0],
-        max_epochs=500,  #! change back to 500
+        max_epochs=10,  #! change back to 500
         precision=32,
         logger=logger,
         # fast_dev_run=True,
