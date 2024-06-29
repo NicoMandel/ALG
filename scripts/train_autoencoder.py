@@ -33,6 +33,7 @@ def parse_args(defdir : str):
     return parser.parse_args()
 
 def train_autoencoder(size : int, datadir : str, logdir : str) -> str:
+    epochs_unlabeled = 500 #! change back to 500
     # model
     ae = ResnetAutoencoder(18, True, width=size, height=size)
     name = str(ae) + "_alg256_{}_Ident".format(size)
@@ -71,7 +72,7 @@ def train_autoencoder(size : int, datadir : str, logdir : str) -> str:
     trainer = pl.Trainer(
         accelerator="gpu",
         devices=[0],
-        max_epochs=10,  #! change back to 500
+        max_epochs=epochs_unlabeled,  
         precision=32,
         logger=logger,
         # fast_dev_run=True,

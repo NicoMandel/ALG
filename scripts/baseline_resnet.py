@@ -10,6 +10,9 @@ from train_model import train_model
 from test_model import test_model
 
 if __name__=="__main__":
+    epochs_labeled = 200     #! change back to 200
+    n_labeled = 100
+
     np.random.seed(0)
     pl.seed_everything(0)
 
@@ -31,9 +34,9 @@ if __name__=="__main__":
     # use all labels here for training!
     input_imgdir = Path(sites_dirs[0]) / "input_images"
     img_list = list([x.stem for x in input_imgdir.glob("*" + ".tif")])
-    copy_img_and_label(100, sites_dirs[0], labeled_output)  # ! img_list
+    copy_img_and_label(n_labeled, sites_dirs[0], labeled_output)  # ! img_list
     model_settings = {
-        "num_epochs" : 5,          #! change back to 200
+        "num_epochs" : epochs_labeled,         
         "model_version" : 18,
         "num_classes" : 1,
         "optim" : "adam",
@@ -83,4 +86,4 @@ if __name__=="__main__":
         # use all labels here for training!
         input_imgdir = Path(site) / "input_images"
         img_list = list([x.stem for x in input_imgdir.glob("*" + ".tif")])
-        copy_img_and_label(100, site, labeled_output)   # ! img_list        
+        copy_img_and_label(n_labeled, site, labeled_output)   # ! img_list        

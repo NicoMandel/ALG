@@ -14,13 +14,18 @@ def parse_args():
     parser = ArgumentParser()
     # Required arguments
     parser.add_argument(
-        "use_subensemble",
+        "--sample",
         help="""Whether to use subensemble sampling or not - as weak / strong baseline""",
-        type=bool, default=True,
+        type=int, 
     )
     return parser.parse_args()
 
 if __name__=="__main__":
+    n_unlabeled = 3000
+    n_labeled = 100
+    epochs_labeled = 200
+    # epochs_unlabeled = 500
+
     args = parse_args()
     np.random.seed(0)
     pl.seed_everything(0)
@@ -39,10 +44,10 @@ if __name__=="__main__":
     site1_rawdirs = get_subdirs(site_1_baseraw)
     raw_root = os.path.join(datadir, 'raw')
     raw_output = os.path.join(raw_root, 'images')
-    crop_dataset(site1_rawdirs, 10, raw_output)
+    crop_dataset(site1_rawdirs, n_unlabeled, raw_output)
 
     # train autoencoder with unlabeled images
-    use_subensemble = args.use_subensemble # ! factor for strong baseline -> if false, will copy random images -> 
+    use_subensemble = args.sample # ! factor for strong baseline -> if false, will copy random images -> 
     base_logdir = os.path.join(basedir, 'lightning_logs', "eccv", 'subensemble_pipeline' if use_subensemble else "baseline_select")
     # site_name = os.path.basename(sites_dirs[0])
     # ae_logdir = os.path.join(base_logdir, site_name, "ae")
@@ -57,10 +62,10 @@ if __name__=="__main__":
     # labeled_imgs = os.path.join(labeled_output, 'images')
     # labeled_labels = os.path.join(labeled_output, 'labels')    
 
-    copy_img_and_label(100, sites_dirs[0], labeled_output)
+    copy_img_and_label(n_labeled, sites_dirs[0], labeled_output)
     # train_subensembles - return position 0 is the autoencoder path, the others are the heads
     model_settings = {
-        "epochs" : 5,          #! change back to 200
+        "epochs" : epochs_labeled,          #! change back to 200
         "num_classes" : 1,
         "optim" : "adam",
         "lr" : 1e-3,
@@ -72,6 +77,7 @@ if __name__=="__main__":
     load_true = True
     for site in sites_dirs[1:]:
         site_name = os.path.basename(site)
+        logdir = os.path.join(base_logdir, site_name)
         print("Generating raw dataset for autoencoder training from site: {}".format(
             site_name
         ))
@@ -79,31 +85,28 @@ if __name__=="__main__":
         # generate new raw dataset
         _rawdir = os.path.join(site, 'raw')
         input_rawdirs = get_subdirs(_rawdir)
-        crop_dataset(input_rawdirs, 10, raw_output)
+        crop_dataset(input_rawdirs, n_unlabeled, raw_output)
 
         # train autoencoder - with previous data + "site"
         print("Completed copying dataset - Training autoencoder for site 0 and site: {}".format(
             site
         ))
-        ae_logdir = os.path.join(base_logdir, site_name, "ae")
+        ae_logdir = os.path.join(logdir, "ae")
         autoenc_path = train_autoencoder(32, raw_root, ae_logdir)
 
         # train heads with dataset from sites-1 
         print("Completed training autoencoder - training subensemble heads on labeled dataset from sites previous to {}".format(
             site
         ))
-        se_logdir = os.path.join(base_logdir, site_name)
-        subens_paths = train_subensemble(autoenc_path, se_logdir, labeled_output, model_settings)
+        subens_paths = train_subensemble(autoenc_path, logdir, labeled_output, model_settings)
 
         # inference subensemble on site
-        logd = os.path.join(base_logdir,"inference", site_name)
         site_p = os.path.join(site, "input_images") 
         print("Starting inference on site {} with models: {}.\nLogging to:{}".format(
-            site_name, subens_paths, logd
+            site_name, subens_paths, logdir
         ))
-        logd_test = os.path.join(base_logdir, "test", site_name)
-        res = test_subensemble(subens_paths, site, model_settings, logd_test, img_folder="input_images", label_folder="mask_images")
-        df = inference_subensemble(subens_paths, site, model_settings, logd,
+        res = test_subensemble(subens_paths, site, model_settings, logdir, img_folder="input_images", label_folder="mask_images")
+        df = inference_subensemble(subens_paths, site, model_settings, logdir,
                                 img_folder="input_images", label_folder="mask_images",
                                 load_true=load_true)
 

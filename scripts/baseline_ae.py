@@ -11,6 +11,11 @@ from train_from_ae import train_resnet_from_ae
 from test_model import test_model
 
 if __name__=="__main__":
+    n_unlabled = 3000
+    n_labeled = 100
+    epochs_labeled = 200    #!
+    epochs_unlabeled = 500
+
     np.random.seed(0)
     pl.seed_everything(0)
 
@@ -28,7 +33,7 @@ if __name__=="__main__":
     site1_rawdirs = get_subdirs(site_1_baseraw)
     raw_root = os.path.join(datadir, 'raw')
     raw_output = os.path.join(raw_root, 'images')
-    crop_dataset(site1_rawdirs, 10, raw_output)
+    crop_dataset(site1_rawdirs, n_unlabled, raw_output)
 
     # train autoencoder with unlabeled images
     base_logdir = os.path.join(basedir, 'lightning_logs', "eccv", 'baseline_ae')
@@ -45,9 +50,9 @@ if __name__=="__main__":
     # labeled_imgs = os.path.join(labeled_output, 'images')
     # labeled_labels = os.path.join(labeled_output, 'labels')    
 
-    copy_img_and_label(100, sites_dirs[0], labeled_output)
+    copy_img_and_label(n_labeled, sites_dirs[0], labeled_output)
     model_settings = {
-        "num_epochs" : 5,          #! change back to 200
+        "num_epochs" : epochs_labeled,          
         "model_version" : 18,
         "num_classes" : 1,
         "optim" : "adam",
@@ -69,7 +74,7 @@ if __name__=="__main__":
         # generate new raw dataset
         _rawdir = os.path.join(site, 'raw')
         input_rawdirs = get_subdirs(_rawdir)
-        crop_dataset(input_rawdirs, 10, raw_output)
+        crop_dataset(input_rawdirs, n_unlabled, raw_output)
 
         # train autoencoder - with previous data + "site"
         print("Completed copying dataset - Training autoencoder for site 0 and site: {}".format(
