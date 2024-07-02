@@ -32,8 +32,8 @@ if __name__=="__main__":
     labeled_output = os.path.join(datadir, 'labeled')
 
     # use all labels here for training!
-    input_imgdir = Path(sites_dirs[0]) / "input_images"
-    img_list = list([x.stem for x in input_imgdir.glob("*" + ".tif")])
+    # input_imgdir = Path(sites_dirs[0]) / "input_images"
+    # img_list = list([x.stem for x in input_imgdir.glob("*" + ".tif")])
     copy_img_and_label(n_labeled, sites_dirs[0], labeled_output)  # ! img_list
     model_settings = {
         "num_epochs" : epochs_labeled,         
@@ -84,6 +84,6 @@ if __name__=="__main__":
             print("Accuracy: for site: {}: {}".format(site_name, acc))
 
         # use all labels here for training!
-        input_imgdir = Path(site) / "input_images"
-        img_list = list([x.stem for x in input_imgdir.glob("*" + ".tif")])
+        # input_imgdir = Path(site) / "input_images"
+        # img_list = list([x.stem for x in input_imgdir.glob("*" + ".tif")])
         copy_img_and_label(n_labeled, site, labeled_output)   # ! img_list        
