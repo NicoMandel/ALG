@@ -14,9 +14,10 @@ from pytorch_lightning import loggers as pl_loggers
 from alg.model import ResNetClassifier 
 from alg.resnet_ae import ResnetAutoencoder
 from alg.dataloader import ALGDataset
+from train_model import get_augmentations
 
 def parse_args(defdir):
-    resdir = os.path.join(defdir, 'lightning_logs')
+
     parser = ArgumentParser()
     # Required arguments
     parser.add_argument(
@@ -71,18 +72,14 @@ def parse_args(defdir):
     )
     return parser.parse_args()
 
-def train_subensemble(backbone_path : str, logdir : str, dataset_path : str,  model_settings: dict, n : int = 5, subsample : float = None) -> list[str]:
+def train_subensemble(backbone_path : str | None, logdir : str, dataset_path : str,  model_settings: dict, n : int = 5, subsample : float = None) -> list[str]:
     fn="head"
-    resn_ae = ResnetAutoencoder.load_from_checkpoint(checkpoint_path = backbone_path)
-    print("Loading autoencoder from: {}".format(backbone_path))
+    if backbone_path:
+        resn_ae = ResnetAutoencoder.load_from_checkpoint(checkpoint_path = backbone_path)
+        print("Loading autoencoder from: {}".format(backbone_path))
 
-    model_paths = [backbone_path]
-    mean = (0.5,)
-    std = (0.5,)
-    tfs = torch_tfs.Compose([
-        torch_tfs.ConvertImageDtype(torch.float),
-        torch_tfs.Normalize(mean, std)        
-    ])
+    model_paths = [backbone_path] if backbone_path else []
+    tfs = get_augmentations()
     base_ds = ALGDataset(
         root=dataset_path,
         transforms=tfs,
@@ -129,17 +126,18 @@ def train_subensemble(backbone_path : str, logdir : str, dataset_path : str,  mo
         # reload model
         model = ResNetClassifier(
             num_classes=model_settings["num_classes"],
-            resnet_version=18,
+            resnet_version=model_settings["resnet_version"],
             optimizer=model_settings["optim"],
             lr=model_settings["lr"],
             batch_size=model_settings["bs"],
-            tune_fc_only=True
+            # tune_fc_only=True
         )
         # reset backbone
-        missing_keys, unexp_keys = model.from_AE(resn_ae)
-        print("Missing Layers: {}".format(missing_keys))
-        print("Unexpected Layers: {}".format(unexp_keys))
-        model.freeze_backbone()
+        if backbone_path:
+            missing_keys, unexp_keys = model.from_AE(resn_ae)
+            print("Missing Layers: {}".format(missing_keys))
+            print("Unexpected Layers: {}".format(unexp_keys))
+        model.unfreeze_backbone() if i == 0 else model.freeze_backbone()      #! on the first iteration, allow it to update backbone weights as well!
 
         # split training and validation dataset
         train_len = int(np.floor(0.7 * len(base_ds)))
@@ -157,6 +155,10 @@ def train_subensemble(backbone_path : str, logdir : str, dataset_path : str,  mo
         best_path = checkpoint_callback.best_model_path
         print(f"Best model at: {best_path}")
         best_model = ResNetClassifier.load_from_checkpoint(best_path)
+        # if training directly without autoencoder, append the model in the first position
+        if not backbone_path and (i==0):
+            model_paths += [best_path]
+            print("Backbone saved from first iteration to: {}".format(best_path))
         bmp = best_model.save_fc(str(i), trainer.logger.root_dir)
         model_paths.append(bmp)
 
