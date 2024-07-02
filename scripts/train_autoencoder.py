@@ -31,18 +31,12 @@ def parse_args():
         "-s", "--size", help="""Size of images to use for autoencoder. Smaller than 256. defaults to 32""", type=int, default=32,
     )
     parser.add_argument(
-        "-d", "--denoise", help="""Whether to train denoising autoencoder or normal. Defaults to normal""", type=bool, default=False
+        "-d", "--denoise", help="""Whether to train denoising autoencoder or normal.""", action="store_true"
     )
     return parser.parse_args()
 
-def train_autoencoder(size : int, datadir : str, logdir : str, epochs_unlabeled : int = 500, denoising : bool = False) -> str:
-    # model
-    ae = ResnetAutoencoder(18, True, width=size, height=size)
-    name = str(ae) + "_alg256_{}_Ident".format(size)
+def get_autoencoder_augmentations(size : int, denoising : bool = False ) -> list | tuple:
 
-    # Dataset
-    # Transformations applied on each image => only make them a tensor
-    # transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
     if not denoising:
         mean = (0.5,)
         std = (0.5,)
@@ -55,11 +49,9 @@ def train_autoencoder(size : int, datadir : str, logdir : str, epochs_unlabeled 
         tfs = torch_tfs.Compose(
             _tf
         )
+        return tfs
     
-        train_datamod = ALGRAWDataModule(root=datadir, transforms=tfs, batch_size=256, num_workers=20)
-
     else:
-        name += "_denoise"
         p = 0.5
         transforms = [torch_tfs.RandomCrop(size, size)] if size != 256 else []
 
@@ -67,7 +59,7 @@ def train_autoencoder(size : int, datadir : str, logdir : str, epochs_unlabeled 
         _tf += [
                 A.OneOf([
                     A.HueSaturationValue(p=p),
-                    A.ISONoise(p=1),
+                    A.ISONoise(p=p),
                 ], p=1),
                 A.OneOf([
                     A.VerticalFlip(p=p),
@@ -87,14 +79,32 @@ def train_autoencoder(size : int, datadir : str, logdir : str, epochs_unlabeled 
             A.OneOf([ 
                 # A.CLAHE(p=1),
                 A.OneOf([
-                    A.CoarseDropout(2, 4, 4, 1, fill_value=0, p=1),
-                    A.CoarseDropout(2, 4, 4, 1, fill_value=255, p=1),
+                    A.CoarseDropout(2, 4, 4, 1, fill_value=0, p=p),
+                    A.CoarseDropout(2, 4, 4, 1, fill_value=255, p=p),
                 ], p=1),
                 A.RandomBrightnessContrast(p=1),
                 A.RandomGamma(p=1),
                 A.GaussNoise(p=1),
             ], p=1)
         ])
+        return transform, transforms
+
+
+def train_autoencoder(size : int, datadir : str, logdir : str, epochs_unlabeled : int = 500, denoising : bool = False) -> str:
+    # model
+    ae = ResnetAutoencoder(34, True, width=size, height=size)
+    name = str(ae) + "_alg256_{}_Ident".format(size)
+
+    # Dataset
+    # Transformations applied on each image => only make them a tensor
+    # transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
+    if not denoising:
+        tfs = get_autoencoder_augmentations(size, denoising)
+        train_datamod = ALGRAWDataModule(root=datadir, transforms=tfs, batch_size=256, num_workers=20)
+
+    else:
+        name += "_denoise"
+        transform, transforms = get_autoencoder_augmentations(size, denoising)
         train_datamod = NoiseALGRawDataModule(root=datadir, transforms=transforms, transform=transform, batch_size=256, num_workers=20)
 
 

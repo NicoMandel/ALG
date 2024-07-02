@@ -82,11 +82,7 @@ def parse_args(defdir : str):
     )
     return parser.parse_args()
 
-def train_model(model : pl.LightningModule, model_settings :  dict, fn : str, logdir, datadir):
-    # Set up Datamodule - with augmentations
-    p = 0.5
-    mean = [0.485, 0.456, 0.406]
-    std = [0.229, 0.224, 0.225]
+def get_augmentations(p : float = 0.5, mean : list = [0.485, 0.456, 0.406], std : list = [0.229, 0.224, 0.225]) -> A.Compose:
     augmentations = A.Compose([
         A.OneOf([
             A.VerticalFlip(p=p),
@@ -110,6 +106,11 @@ def train_model(model : pl.LightningModule, model_settings :  dict, fn : str, lo
         A.Normalize(mean=mean, std=std),
         ToTensorV2()        # 
     ])
+    return augmentations
+
+def train_model(model : pl.LightningModule, model_settings :  dict, fn : str, logdir, datadir):
+    # Set up Datamodule - with augmentations
+    augmentations = get_augmentations()
     datamodule = ALGDataModule(
         root = datadir,
         img_folder="images",
