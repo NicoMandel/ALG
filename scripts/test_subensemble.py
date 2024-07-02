@@ -11,6 +11,7 @@ import pandas as pd
 import pytorch_lightning as pl
 from pytorch_lightning import loggers as pl_loggers
 
+from alg.model import ResNetClassifier
 from alg.resnet_ae import ResnetAutoencoder
 from alg.subensemble import SubEnsemble
 from alg.subensemble_dataset import SubensembleDataset
@@ -30,19 +31,25 @@ def default_arguments(basedir : str):
     return args
 
 def test_subensemble(mdl_pths : list, dataset_path : str, model_settings : dict, logdir : str,
-                          img_folder : str = "images", label_folder : str = "labels",
+                          img_folder : str = "images", label_folder : str = "labels", from_ae : bool = True,
                           subset_n : int = None) -> pd.DataFrame:
     subens_model =   SubEnsemble(
         model_settings["num_classes"],
-        18,
+        model_settings["resnet_version"],
         transfer=True,
         heads=mdl_pths[1:],
         load_true = True
     )
-    print("Loading autoencoder from: {}".format(mdl_pths[0]))
-    resn_ae = ResnetAutoencoder.load_from_checkpoint(checkpoint_path = mdl_pths[0])
-    missing_keys, unexp_keys = subens_model.from_AE(resn_ae)
-    if missing_keys or unexp_keys: print("Missing Layers: {},\n\nUnexpected Layers: {}".format(missing_keys, unexp_keys))
+    print("Loading backbone from: {}".format(mdl_pths[0]))
+    if from_ae:
+        resn_ae = ResnetAutoencoder.load_from_checkpoint(checkpoint_path = mdl_pths[0])
+        missing_keys, unexp_keys = subens_model.from_AE(resn_ae)
+        if missing_keys or unexp_keys: print("Missing Layers: {},\n\nUnexpected Layers: {}".format(missing_keys, unexp_keys))
+    else:
+        resn = ResNetClassifier.load_from_checkpoint(checkpoint_path = mdl_pths[0])
+        missing_keys, unexp_keys = subens_model.from_classif(resn)
+        if missing_keys or unexp_keys: print("Missing Layers: {},\n\nUnexpected Layers: {}".format(missing_keys, unexp_keys))
+    
     subens_model.freeze()
 
     # 3. load the inference dataset

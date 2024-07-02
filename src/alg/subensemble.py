@@ -7,6 +7,7 @@ from torch.optim import SGD, Adam
 from torchmetrics import Accuracy
 import pytorch_lightning as pl
 
+from alg.model import ResNetClassifier
 from alg.resnet_ae import ResnetAutoencoder
 from alg.subensemble_utils import ParallelModule, compute_entropy
 
@@ -139,6 +140,13 @@ class SubEnsemble(pl.LightningModule):
         missing_keys, unexpected_keys = self.resnet_model.load_state_dict(new_dict, strict = False)
         self.freeze_layers()
         return missing_keys, unexpected_keys
+    
+    def from_classif(self, resnet_model : ResNetClassifier):
+        new_dict = resnet_model.resnet_model.state_dict()
+        missing_keys, unexpected_keys = self.resnet_model.load_state_dict(new_dict, strict = False)
+        self.freeze_layers()
+        return missing_keys, unexpected_keys
+
     
     def from_resnets(self, *resnet_models):
         fc_layers = []
