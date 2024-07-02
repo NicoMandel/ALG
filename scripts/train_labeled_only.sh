@@ -1,4 +1,7 @@
 #!/usr/bin/bash
+
+trap "exit" INT
+
 clean_datadirs() {
     rm /home/mandel/data_ssd/no_ae/data/labeled/images/*.tif
     rm /home/mandel/data_ssd/no_ae/data/labeled/labeled/*.tif
