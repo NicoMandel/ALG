@@ -166,9 +166,9 @@ class ResnetAutoencoder(pl.LightningModule):
         """
             Loss defined differently, see nn module fct. x and x_hat are inverted
         """
-        x, _ = batch
+        x, y = batch        
         x_hat = self.forward(x)
-        loss = self.loss(x_hat, x)
+        loss = self.loss(x_hat, y)
         loss = loss.sum(dim=[1, 2, 3]).mean(dim=[0])
         return loss
     

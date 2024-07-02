@@ -69,7 +69,7 @@ class ALGRAWDataset(VisionDataset):
             if self.transforms is not None:
                 img = self.transforms(img)
 
-            return img, 1
+            return img, img        
     
 class ALGRAWDataModule(pl.LightningDataModule):
     """
