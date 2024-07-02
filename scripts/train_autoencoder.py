@@ -89,10 +89,9 @@ def get_autoencoder_augmentations(size : int, denoising : bool = False ) -> list
         ])
         return transform, transforms
 
-
-def train_autoencoder(size : int, datadir : str, logdir : str, epochs_unlabeled : int = 500, denoising : bool = False) -> str:
+def train_autoencoder(size : int, datadir : str, logdir : str, resnet_version: int  = 18, epochs_unlabeled : int = 500, denoising : bool = False) -> str:
     # model
-    ae = ResnetAutoencoder(34, True, width=size, height=size)
+    ae = ResnetAutoencoder(resnet_version, True, width=size, height=size)
     name = str(ae) + "_alg256_{}_Ident".format(size)
 
     # Dataset
