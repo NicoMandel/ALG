@@ -103,7 +103,8 @@ def train_resnet_from_ae(ae_modelpath : str, logdir :  str, model_settings : dic
     missing_keys, unexp_keys = model.from_AE(resn_ae)
     if missing_keys: print("Missing Layers: {}".format(missing_keys))
     if unexp_keys: print("Unexpected Layers: {}".format(unexp_keys))
-    best_path, logger = train_model(model, model_settings, "resn_from_ae", logdir, datadir)
+    model.unfreeze_backbone()
+    best_path, logger = train_model(model, model_settings, "resn{}_from_ae".format(model_settings["model_version"]), logdir, datadir)
     return best_path, logger
 
 
