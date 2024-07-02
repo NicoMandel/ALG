@@ -74,6 +74,14 @@ class SubEnsemble(pl.LightningModule):
         for child in list(self.resnet_model.children()):
             for param in child.parameters():
                 param.requires_grad = False
+    
+    def unfreeze_layers(self):
+        """
+            Function to freeze all backbone layers -> call after loading from ae
+        """
+        for child in list(self.resnet_model.children()):
+            for param in child.parameters():
+                param.requires_grad = True
 
     def freeze_heads(self):
         for fcl in self.fc_layers:
