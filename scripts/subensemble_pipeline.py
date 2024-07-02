@@ -138,7 +138,7 @@ if __name__=="__main__":
         print("Starting inference on site {} with models: {}.\nLogging to:{}".format(
             site_name, subens_paths, logdir
         ))
-        res = test_subensemble(subens_paths, site, model_settings, logdir, img_folder="input_images", label_folder="mask_images")
+        res = test_subensemble(subens_paths, site, model_settings, logdir, img_folder="input_images", label_folder="mask_images", from_ae=autoenc)
         df = inference_subensemble(subens_paths, site, model_settings, logdir,
                                 img_folder="input_images", label_folder="mask_images",
                                 load_true=load_true)
