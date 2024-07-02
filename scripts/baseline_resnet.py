@@ -1,5 +1,7 @@
 import os
 from pathlib import Path
+from argparse import ArgumentParser
+
 import numpy as np
 import torch
 import pytorch_lightning as pl
@@ -9,15 +11,54 @@ from alg.utils import copy_img_and_label
 from train_model import train_model
 from test_model import test_model
 
-if __name__=="__main__":
-    epochs_labeled = 200     #! change back to 200
-    n_labeled = 100
 
+def parse_resnet() -> ArgumentParser:
+    parser = ArgumentParser("Script Setup")
+
+    parser.add_argument(
+        "name",
+        help="""name of experiment - is used as subfolder in data/ and lightning_logs/""", type=str
+        )
+    # number of images
+    parser.add_argument(
+        "--n_labeled",
+        help="""Number of labeled images to copy""",
+        type=int, default=20
+    )
+
+    # epochs to run
+    parser.add_argument(
+        "--epochs_labeled",
+        help="""Number epochs to run on labeled samples""",
+        type=int, default=200
+    )
+
+    # Which resnet version - 18 or 34
+    parser.add_argument(
+        "--resnet_version",
+        help="""Which resnet version to use - 18 or 34. defaults to 18""",
+        type=int, default=18
+    )
+
+
+    return parser
+
+if __name__=="__main__":
+    # setup seeds
     np.random.seed(0)
     pl.seed_everything(0)
 
+    # setup arguments
+    parser = parse_resnet()
+    args = parser.parse_args()
+    epochs_labeled = args.epochs_labeled     #! change back to 200
+    n_labeled = args.n_labeled
+    resnet_version = args.resnet_version
+    
+    name =args.name
+    # setup directories
     basedir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    datadir = os.path.join(basedir, 'data', "eccv")
+    datadir = os.path.join(basedir, 'data', args.name)
     sites_basedir = os.path.expanduser("~/src/csu/data/ALG/sites")
     sites_dirs = [
         os.path.join(sites_basedir, "site1_McD"),
@@ -26,7 +67,7 @@ if __name__=="__main__":
         os.path.join(sites_basedir, "site4_TSR")
     ]
 
-    base_logdir = os.path.join(basedir, 'lightning_logs', "eccv", 'baseline_resnet')
+    base_logdir = os.path.join(basedir, 'lightning_logs', args.name, 'baseline_resnet')
 
     # get subdataset for labeled heads training 
     labeled_output = os.path.join(datadir, 'labeled')
@@ -37,7 +78,7 @@ if __name__=="__main__":
     copy_img_and_label(n_labeled, sites_dirs[0], labeled_output)  # ! img_list
     model_settings = {
         "num_epochs" : epochs_labeled,         
-        "model_version" : 18,
+        "model_version" : resnet_version,
         "num_classes" : 1,
         "optim" : "adam",
         "lr" : 1e-3,

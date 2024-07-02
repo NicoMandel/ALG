@@ -1,5 +1,7 @@
 import os
 from pathlib import Path
+from argparse import ArgumentParser
+
 import numpy as np
 import torch
 import pytorch_lightning as pl
@@ -9,18 +11,57 @@ from train_autoencoder import train_autoencoder
 from alg.utils import get_subdirs, copy_img_and_label
 from train_from_ae import train_resnet_from_ae
 from test_model import test_model
+from baseline_resnet import parse_resnet
+
+def parse_ae(parser : ArgumentParser) -> ArgumentParser:
+
+
+    # whether to use the denoising setting on the autoencoder
+    parser.add_argument(
+        "--denoising",
+        help="""Whether to run a denoising Autoencoder or not""",
+        action="store_true"
+    )
+
+    # number of images unlabeled
+    parser.add_argument(
+        "--n_unlabeled",
+        help="""Number of unlabeled images to copy""",
+        type=int, default=3000
+    )
+    # number of epochs for unlabeled
+    parser.add_argument(
+        "--epochs_unlabeled",
+        help="""Number of epochs to run on unlabeled samples""",
+        type=int, default=500
+    )
+
+    return parser
 
 if __name__=="__main__":
-    n_unlabled = 3000
-    n_labeled = 100
-    epochs_labeled = 200    #!
-    epochs_unlabeled = 500
-
+    # seed setup
     np.random.seed(0)
-    pl.seed_everything(0)
+    pl.seed_everything(0)   
 
+    # Argument passing
+    parser = parse_resnet()
+    parser = parse_ae(parser)
+    args = parser.parse_args()
+
+    # default settings
+    resnet_version = args.resnet_version
+    n_labeled = args.n_labeled
+    epochs_labeled = args.epochs_labeled
+    name = args.name
+    
+    # autoencoder settings
+    n_unlabled = args.n_unlabeled   
+    epochs_unlabeled = args.epochs_unlabeled
+    denoising = args.denoising
+
+    # directory setup
     basedir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    datadir = os.path.join(basedir, 'data', "eccv")
+    datadir = os.path.join(basedir, 'data', args.name)
     sites_basedir = os.path.expanduser("~/src/csu/data/ALG/sites")
     sites_dirs = [
         os.path.join(sites_basedir, "site1_McD"),
@@ -36,7 +77,7 @@ if __name__=="__main__":
     crop_dataset(site1_rawdirs, n_unlabled, raw_output)
 
     # train autoencoder with unlabeled images
-    base_logdir = os.path.join(basedir, 'lightning_logs', "eccv", 'baseline_ae')
+    base_logdir = os.path.join(basedir, 'lightning_logs', args.name, 'baseline_ae')
     # site_name = os.path.basename(sites_dirs[0])
     # ae_logdir = os.path.join(base_logdir, site_name, "ae")
     # autoencoder_path = train_autoencoder(32, raw_root, ae_logdir)
@@ -53,7 +94,7 @@ if __name__=="__main__":
     copy_img_and_label(n_labeled, sites_dirs[0], labeled_output)
     model_settings = {
         "num_epochs" : epochs_labeled,          
-        "model_version" : 18,
+        "model_version" : resnet_version,
         "num_classes" : 1,
         "optim" : "adam",
         "lr" : 1e-3,
@@ -81,7 +122,14 @@ if __name__=="__main__":
             site
         ))
         ae_logdir = os.path.join(base_logdir, site_name, "ae")
-        autoenc_path = train_autoencoder(32, raw_root, ae_logdir)
+        autoenc_path = train_autoencoder(
+            32,
+            raw_root,
+            ae_logdir,
+            resnet_version=resnet_version,
+            epochs_unlabeled=epochs_unlabeled,
+            denoising=denoising
+            )
         print("Completed training autoencoder - training model on labeled dataset from sites previous to {}".format(
             site
         ))
