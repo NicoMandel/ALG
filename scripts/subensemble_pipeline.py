@@ -6,7 +6,6 @@ import pytorch_lightning as pl
 from generate_subdataset import crop_dataset
 from train_autoencoder import train_autoencoder
 from train_subensemble import train_subensemble
-from inference_subensemble import inference_subensemble
 from test_subensemble import test_subensemble
 from alg.utils import get_subdirs, copy_img_and_label
 from baseline_resnet import parse_resnet
@@ -138,10 +137,8 @@ if __name__=="__main__":
         print("Starting inference on site {} with models: {}.\nLogging to:{}".format(
             site_name, subens_paths, logdir
         ))
-        res = test_subensemble(subens_paths, site, model_settings, logdir, img_folder="input_images", label_folder="mask_images", from_ae=autoenc)
-        df = inference_subensemble(subens_paths, site, model_settings, logdir,
-                                img_folder="input_images", label_folder="mask_images",
-                                load_true=load_true)
+        res = test_subensemble("test", subens_paths, site, model_settings, logdir, img_folder="input_images", label_folder="mask_images", from_ae=autoenc, load_true=load_true)
+        df = test_subensemble("inference", subens_paths, site, model_settings, logdir, img_folder="input_images", label_folder="mask_images", from_ae=autoenc, load_true=load_true)
 
         # sort the label files
         df.sort_values('entropy', inplace=True, ascending=False)

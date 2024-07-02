@@ -30,9 +30,12 @@ def default_arguments(basedir : str):
     }
     return args
 
-def test_subensemble(mdl_pths : list, dataset_path : str, model_settings : dict, logdir : str,
-                          img_folder : str = "images", label_folder : str = "labels", from_ae : bool = True,
-                          subset_n : int = None) -> pd.DataFrame:
+def test_subensemble(mode: str, mdl_pths : list, dataset_path : str, model_settings : dict, logdir : str,
+                          img_folder : str = "images", label_folder : str = "labels", load_true : bool=False, from_ae : bool = True,
+                          subset_n : int = None) -> float | pd.DataFrame:
+    """
+        mode should be either "test" or "inference"
+    """
     subens_model =   SubEnsemble(
         model_settings["num_classes"],
         model_settings["resnet_version"],
@@ -72,7 +75,7 @@ def test_subensemble(mdl_pths : list, dataset_path : str, model_settings : dict,
     if subset_n:
         ds_inds = np.random.choice(len(base_ds), subset_n)
         base_ds = Subset(base_ds, ds_inds)
-    test_dl = DataLoader(base_ds, batch_size=model_settings["bs"], num_workers=4)
+    dl = DataLoader(base_ds, batch_size=model_settings["bs"], num_workers=4)
     
     # 4. run inference and get results out
     trainer_args = {
@@ -86,8 +89,21 @@ def test_subensemble(mdl_pths : list, dataset_path : str, model_settings : dict,
     trainer.logger._log_graph = True
     trainer.logger._default_hp_metric = None    # none needed
     # trainer.fit(subens_model, train_dataloaders=inf_dl)
-    test_acc_epoch = trainer.test(subens_model, test_dl)
-    return test_acc_epoch
+    if mode == "test":
+        test_acc_epoch = trainer.test(subens_model, dl)
+        return test_acc_epoch
+    
+    elif mode == "inference":
+        results = trainer.predict(subens_model, dl)
+        dld ={}
+        dld = {}
+        [dld.update(a) for a in results]
+        columns = ["vote", "class_indices", "entropy"]
+        if load_true: columns.append("label")
+        df = pd.DataFrame.from_dict(dld, orient='index', columns=columns)
+        return df
+    else: raise TypeError("Mode should either be inference or test, not: {}".format(mode))
+
 
 if __name__=="__main__":
 
