@@ -26,6 +26,13 @@ def parse_subens(parser : ArgumentParser) -> ArgumentParser:
         action="store_true"
     )
 
+    # How many heads to use
+    parser.add_argument(
+        "--heads",
+        help="""How many heads to use. Defaults to 5""",
+        type=int, default=5
+    )
+
     return parser
 
 if __name__=="__main__":
@@ -130,7 +137,7 @@ if __name__=="__main__":
             ))
 
         # train heads with dataset from sites-1 
-        subens_paths = train_subensemble(autoenc_path if autoenc else None, logdir, labeled_output, model_settings, seed=args.seed)
+        subens_paths = train_subensemble(autoenc_path if autoenc else None, logdir, labeled_output, model_settings, n=args.heads, seed=args.seed)
 
         # inference subensemble on site
         site_p = os.path.join(site, "input_images") 
