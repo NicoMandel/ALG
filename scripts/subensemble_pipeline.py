@@ -29,16 +29,15 @@ def parse_subens(parser : ArgumentParser) -> ArgumentParser:
     return parser
 
 if __name__=="__main__":
-    # setup of start
-    np.random.seed(0)
-    pl.seed_everything(0)
-
     # setup of arguments
     parser = parse_resnet()
     parser = parse_ae(parser)
     parser = parse_subens(parser)
     args = parser.parse_args()
 
+    # seed setup
+    np.random.seed(args.seed)
+    pl.seed_everything(args.seed)   
     # default arguments
     name = args.name
     n_labeled = args.n_labeled
@@ -91,7 +90,8 @@ if __name__=="__main__":
     # labeled_imgs = os.path.join(labeled_output, 'images')
     # labeled_labels = os.path.join(labeled_output, 'labels')    
 
-    copy_img_and_label(n_labeled, sites_dirs[0], labeled_output)
+    #! always start with 100 labeled and then add 20
+    copy_img_and_label(100, sites_dirs[0], labeled_output)
     # train_subensembles - return position 0 is the autoencoder path, the others are the heads
     model_settings = {
         "epochs" : epochs_labeled,          
@@ -130,7 +130,7 @@ if __name__=="__main__":
             ))
 
         # train heads with dataset from sites-1 
-        subens_paths = train_subensemble(autoenc_path if autoenc else None, logdir, labeled_output, model_settings)
+        subens_paths = train_subensemble(autoenc_path if autoenc else None, logdir, labeled_output, model_settings, seed=args.seed)
 
         # inference subensemble on site
         site_p = os.path.join(site, "input_images") 

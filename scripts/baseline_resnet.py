@@ -40,17 +40,21 @@ def parse_resnet() -> ArgumentParser:
         type=int, default=18
     )
 
+    # baseline seed
+    parser.add_argument(
+        "--seed",
+        help="""Which seeed to start off from. Defaults to 0""", type=int, default=0
+    )
 
     return parser
 
 if __name__=="__main__":
-    # setup seeds
-    np.random.seed(0)
-    pl.seed_everything(0)
 
     # setup arguments
     parser = parse_resnet()
     args = parser.parse_args()
+    np.random.seed(args.seed)
+    pl.seed_everything(args.seed)
     epochs_labeled = args.epochs_labeled     #! change back to 200
     n_labeled = args.n_labeled
     resnet_version = args.resnet_version
@@ -75,7 +79,8 @@ if __name__=="__main__":
     # use all labels here for training!
     # input_imgdir = Path(sites_dirs[0]) / "input_images"
     # img_list = list([x.stem for x in input_imgdir.glob("*" + ".tif")])
-    copy_img_and_label(n_labeled, sites_dirs[0], labeled_output)  # ! img_list
+    # ! always start with 100 labeled - and then add 20
+    copy_img_and_label(100, sites_dirs[0], labeled_output)  # ! img_list
     model_settings = {
         "num_epochs" : epochs_labeled,         
         "model_version" : resnet_version,
@@ -108,7 +113,7 @@ if __name__=="__main__":
 
         # train model with labeled dataset from sites-1 
         model_logdir = os.path.join(base_logdir, site_name)
-        model_p, logger = train_model(model, model_settings, "resnet_{}".format(model_settings["model_version"]),  model_logdir, labeled_output)
+        model_p, logger = train_model(model, model_settings, "resnet_{}".format(model_settings["model_version"]),  model_logdir, labeled_output, seed=args.seed)
 
         # test model on new site
         site_p = os.path.join(site, "input_images") 

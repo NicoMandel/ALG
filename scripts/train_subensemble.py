@@ -72,7 +72,7 @@ def parse_args(defdir):
     )
     return parser.parse_args()
 
-def train_subensemble(backbone_path : str | None, logdir : str, dataset_path : str,  model_settings: dict, n : int = 5, subsample : float = None) -> list[str]:
+def train_subensemble(backbone_path : str | None, logdir : str, dataset_path : str,  model_settings: dict, n : int = 5, subsample : float = None, seed : int = 0) -> list[str]:
     fn="head"
     if backbone_path:
         resn_ae = ResnetAutoencoder.load_from_checkpoint(checkpoint_path = backbone_path)
@@ -142,7 +142,7 @@ def train_subensemble(backbone_path : str | None, logdir : str, dataset_path : s
         # split training and validation dataset
         train_len = int(np.floor(0.7 * len(base_ds)))
         val_len = len(base_ds) - train_len
-        generator = torch.Generator().manual_seed(i)
+        generator = torch.Generator().manual_seed(seed + i)
         train_ds, val_ds = random_split(base_ds, [train_len, val_len], generator=generator)
 
         # dataloaders
@@ -150,7 +150,7 @@ def train_subensemble(backbone_path : str | None, logdir : str, dataset_path : s
         val_dl = DataLoader(val_ds, batch_size=model_settings["bs"], num_workers=4, drop_last=True)
 
         # train the model
-        print("Training Subensemble with seed: {}".format(i))
+        print("Training Subensemble with seed: {}".format(seed + i))
         trainer.fit(model, train_dataloaders=train_dl, val_dataloaders=val_dl)
         best_path = checkpoint_callback.best_model_path
         print(f"Best model at: {best_path}")

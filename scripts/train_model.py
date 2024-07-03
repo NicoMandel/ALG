@@ -108,7 +108,7 @@ def get_augmentations(p : float = 0.5, mean : list = [0.485, 0.456, 0.406], std 
     ])
     return augmentations
 
-def train_model(model : pl.LightningModule, model_settings :  dict, fn : str, logdir, datadir):
+def train_model(model : pl.LightningModule, model_settings :  dict, fn : str, logdir, datadir, seed : int = 42):
     # Set up Datamodule - with augmentations
     augmentations = get_augmentations()
     datamodule = ALGDataModule(
@@ -122,7 +122,8 @@ def train_model(model : pl.LightningModule, model_settings :  dict, fn : str, lo
         limit=model_settings["limit"],
         val_percentage=0.2,
         img_ext=".tif",
-        label_ext=".tif"
+        label_ext=".tif",
+        seed=seed
     )
 
     checkpoint_callback = pl.callbacks.ModelCheckpoint(

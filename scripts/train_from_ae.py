@@ -15,7 +15,7 @@ from pytorch_lightning import loggers as pl_loggers
 
 from alg.model import ResNetClassifier
 from alg.resnet_ae import ResnetAutoencoder
-from alg.dataloader import ALGDataModule
+# from alg.dataloader import ALGDataModule
 from alg.utils import model_settings_from_args
 from test_model import test_model
 from train_model import train_model
@@ -88,7 +88,7 @@ def parse_args(defdir : str):
     )
     return parser.parse_args()
 
-def train_resnet_from_ae(ae_modelpath : str, logdir :  str, model_settings : dict, datadir : str) -> str:
+def train_resnet_from_ae(ae_modelpath : str, logdir :  str, model_settings : dict, datadir : str, seed : int = 42) -> str:
     model = ResNetClassifier(
         num_classes=model_settings["num_classes"],
         resnet_version=model_settings["model_version"],
@@ -104,7 +104,7 @@ def train_resnet_from_ae(ae_modelpath : str, logdir :  str, model_settings : dic
     if missing_keys: print("Missing Layers: {}".format(missing_keys))
     if unexp_keys: print("Unexpected Layers: {}".format(unexp_keys))
     model.unfreeze_backbone()
-    best_path, logger = train_model(model, model_settings, "resn{}_from_ae".format(model_settings["model_version"]), logdir, datadir)
+    best_path, logger = train_model(model, model_settings, "resn{}_from_ae".format(model_settings["model_version"]), logdir, datadir, seed=seed)
     return best_path, logger
 
 

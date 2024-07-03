@@ -39,14 +39,16 @@ def parse_ae(parser : ArgumentParser) -> ArgumentParser:
     return parser
 
 if __name__=="__main__":
-    # seed setup
-    np.random.seed(0)
-    pl.seed_everything(0)   
+
 
     # Argument passing
     parser = parse_resnet()
     parser = parse_ae(parser)
     args = parser.parse_args()
+
+    # seed setup
+    np.random.seed(args.seed)
+    pl.seed_everything(args.seed)   
 
     # default settings
     resnet_version = args.resnet_version
@@ -139,7 +141,8 @@ if __name__=="__main__":
         model_p, logger = train_resnet_from_ae(autoenc_path,
                                         model_logdir,
                                         model_settings,
-                                        labeled_output
+                                        labeled_output,
+                                        seed=args.seed
                                         )
 
         # test model on new site
