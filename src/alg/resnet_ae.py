@@ -127,6 +127,8 @@ class ResnetAutoencoder(pl.LightningModule):
                  width : int = 32,
                  height : int = 32,
                  lr : int = 1e-3,
+                 use_fft : bool = False,
+                 use_scheduler : bool = False,
                 *args: pl.Any, **kwargs: pl.Any) -> None:
         """
             AutoEncoder Architecture.
@@ -151,7 +153,15 @@ class ResnetAutoencoder(pl.LightningModule):
         else:
             raise ValueError("Unknown width {} for Autoencoder training. Possible dimensions are: {}".format(width, (32, 256)))
         self.example_input_array = torch.zeros(1, num_input_channels, width, height)
-        
+
+        # scheduler for lr
+        self.use_scheduler = use_scheduler
+
+        # loss functions
+        self.use_fft = use_fft
+        if use_fft:
+            self.fft_l = nn.MSELoss()
+
         self.loss = nn.MSELoss(reduction="none")
 
     def __str__(self) -> str:
@@ -170,14 +180,28 @@ class ResnetAutoencoder(pl.LightningModule):
         x_hat = self.forward(x)
         loss = self.loss(x_hat, y)
         loss = loss.sum(dim=[1, 2, 3]).mean(dim=[0])
+        if self.use_fft: loss += self._fourier_loss(x_hat, y)
         return loss
+    
+    def _fourier_loss(self, x_hat, y):
+        input_fft = torch.fft.fft2(x_hat)
+        target_fft = torch.fft.fft2(y)
+        # input_mag = torch.linalg.vector_norm(input_fft.real + input_fft.imag)
+        # target_mag = torch.linalg.vector_norm(target_fft.real + target_fft.mag)
+        # l1 = self.fft_l(input_fft.real, target_fft.real) + self.fft_l(input_fft.imag, target_fft.imag)    # ! second loss function
+        l2 = self.fft_l(input_fft.abs(), target_fft.abs())
+        return l2
     
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr=self._lr)
 
+        optim_dict= {"optimizer" : optimizer}
         # scheduler is optional but helpful
-        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.2, patience=60, min_lr=5e-5)
-        return {"optimizer" : optimizer, "lr_scheduler" : scheduler, "monitor" : "val_loss"}
+        if self.use_scheduler:
+            scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.2, patience=60, min_lr=5e-5)
+            optim_dict["lr_scheduler"] = scheduler
+            optim_dict["monitor"] = "val_loss"
+        return  optim_dict
         # return optimizer
 
     # steps

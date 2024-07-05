@@ -33,6 +33,12 @@ def parse_args():
     parser.add_argument(
         "-d", "--denoise", help="""Whether to train denoising autoencoder or normal.""", action="store_true"
     )
+    parser.add_argument(
+        "--fft", action="store_true", help="""Whether to use 2D FFT loss for reconstructions as well."""
+    )
+    parser.add_argument(
+        "--scheduler", action="store_true", help="""Whether to use a scheduler to reduce the lr on plateau"""
+    )
     return parser.parse_args()
 
 def get_autoencoder_augmentations(size : int, denoising : bool = False ) -> list | tuple:
@@ -53,7 +59,7 @@ def get_autoencoder_augmentations(size : int, denoising : bool = False ) -> list
     
     else:
         p = 0.5
-        transforms = [torch_tfs.RandomCrop(size, size)] if size != 256 else []
+        # transforms = [torch_tfs.RandomCrop(size, size)] if size != 256 else []
 
         _tf = [A.RandomCrop(size, size)] if size != 256 else []
         _tf += [
@@ -89,9 +95,10 @@ def get_autoencoder_augmentations(size : int, denoising : bool = False ) -> list
         ])
         return transform, transforms
 
-def train_autoencoder(size : int, datadir : str, logdir : str, resnet_version: int  = 18, epochs_unlabeled : int = 500, denoising : bool = False) -> str:
+def train_autoencoder(size : int, datadir : str, logdir : str, resnet_version: int  = 18, epochs_unlabeled : int = 500, 
+                      denoising : bool = False, use_fft : bool = False, scheduler : bool = False) -> str:
     # model
-    ae = ResnetAutoencoder(resnet_version, True, width=size, height=size)
+    ae = ResnetAutoencoder(resnet_version, True, width=size, height=size, use_fft=use_fft, use_scheduler=scheduler)
     name = str(ae) + "_alg256_{}_Ident".format(size)
 
     # Dataset
@@ -105,10 +112,6 @@ def train_autoencoder(size : int, datadir : str, logdir : str, resnet_version: i
         name += "_denoise"
         transform, transforms = get_autoencoder_augmentations(size, denoising)
         train_datamod = NoiseALGRawDataModule(root=datadir, transforms=transforms, transform=transform, batch_size=256, num_workers=20)
-
-
-    # Loading the training dataset. We need to split it into a training and validation part
-    # pl.seed_everything(42)
 
     # Logger
     logger = pl_loggers.TensorBoardLogger(save_dir=logdir, name=name)
@@ -158,9 +161,9 @@ if __name__=="__main__":
 
     datadir = args.datadir
     ds_name = os.path.basename(args.datadir)
-    logdir = os.path.join(basedir, 'lightning_logs', 'test_denoise', ds_name)
+    logdir = os.path.join(basedir, 'lightning_logs', 'ae_test_fft_denoise', ds_name)
 
-    best_path = train_autoencoder(32, datadir, logdir,epochs_unlabeled=args.num_epochs, denoising=args.denoise)
+    best_path = train_autoencoder(32, datadir, logdir,epochs_unlabeled=args.num_epochs, denoising=args.denoise, use_fft=args.fft, scheduler=args.scheduler)
     with open(args.output, "w") as f:
         f.write(best_path)
     print("Written best path to: {}".format(args.output))
