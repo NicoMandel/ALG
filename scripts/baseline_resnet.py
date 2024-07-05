@@ -23,7 +23,7 @@ def parse_resnet() -> ArgumentParser:
     parser.add_argument(
         "--n_labeled",
         help="""Number of labeled images to copy""",
-        type=int, default=20
+        type=int, default=None
     )
 
     # epochs to run
@@ -44,6 +44,11 @@ def parse_resnet() -> ArgumentParser:
     parser.add_argument(
         "--seed",
         help="""Which seeed to start off from. Defaults to 0""", type=int, default=0
+    )
+
+    parser.add_argument(
+        "--full", action="store_true",
+        help="""Whether to use labeled samples or the full site"""
     )
 
     return parser
@@ -71,16 +76,21 @@ if __name__=="__main__":
         os.path.join(sites_basedir, "site4_TSR")
     ]
 
-    base_logdir = os.path.join(basedir, 'lightning_logs', args.name, 'baseline_resnet')
+    v_name = "baseline_resnet"
+    if args.full: v_name += "_full"
+    base_logdir = os.path.join(basedir, 'lightning_logs', args.name, v_name)
 
     # get subdataset for labeled heads training 
     labeled_output = os.path.join(datadir, 'labeled')
 
-    # use all labels here for training!
-    # input_imgdir = Path(sites_dirs[0]) / "input_images"
-    # img_list = list([x.stem for x in input_imgdir.glob("*" + ".tif")])
-    # ! always start with 100 labeled - and then add 20
-    copy_img_and_label(100, sites_dirs[0], labeled_output)  # ! img_list
+    # use labels here for training!
+    if args.full:
+        input_imgdir = Path(sites_dirs[0]) / "input_images"
+        img_list = list([x.stem for x in input_imgdir.glob("*" + ".tif")])
+        copy_img_and_label(img_list, sites_dirs[0], labeled_output) 
+    else:
+        copy_img_and_label(100, sites_dirs[0], labeled_output) 
+
     model_settings = {
         "num_epochs" : epochs_labeled,         
         "model_version" : resnet_version,
@@ -130,6 +140,9 @@ if __name__=="__main__":
             print("Accuracy: for site: {}: {}".format(site_name, acc))
 
         # use all labels here for training!
-        # input_imgdir = Path(site) / "input_images"
-        # img_list = list([x.stem for x in input_imgdir.glob("*" + ".tif")])
-        copy_img_and_label(n_labeled, site, labeled_output)   # ! img_list        
+        if args.full:
+            input_imgdir = Path(site) / "input_images"
+            img_list = list([x.stem for x in input_imgdir.glob("*" + ".tif")])
+            copy_img_and_label(n_labeled, site, labeled_output)
+        else:
+            copy_img_and_label(n_labeled, site, labeled_output)           

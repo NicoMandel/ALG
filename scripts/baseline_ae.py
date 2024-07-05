@@ -79,7 +79,9 @@ if __name__=="__main__":
     crop_dataset(site1_rawdirs, n_unlabled, raw_output)
 
     # train autoencoder with unlabeled images
-    base_logdir = os.path.join(basedir, 'lightning_logs', args.name, 'baseline_ae')
+    v_name = "baseline_ae" if not args.denoising else "baseline_ae_denoise"
+    if args.full: v_name += "_full" 
+    base_logdir = os.path.join(basedir, 'lightning_logs', args.name, v_name)
     # site_name = os.path.basename(sites_dirs[0])
     # ae_logdir = os.path.join(base_logdir, site_name, "ae")
     # autoencoder_path = train_autoencoder(32, raw_root, ae_logdir)
@@ -161,6 +163,9 @@ if __name__=="__main__":
             print("Accuracy: for site: {}: {}".format(site_name, acc))
 
         # use all labels here for training!
-        input_imgdir = Path(site) / "input_images"
-        img_list = list([x.stem for x in input_imgdir.glob("*" + ".tif")])
-        copy_img_and_label(img_list, site, labeled_output)        
+        if args.full:
+            input_imgdir = Path(site) / "input_images"
+            img_list = list([x.stem for x in input_imgdir.glob("*" + ".tif")]) 
+            copy_img_and_label(img_list, site, labeled_output)
+        else:
+            copy_img_and_label(n_labeled, site, labeled_output)
