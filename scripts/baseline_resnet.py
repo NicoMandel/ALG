@@ -143,6 +143,6 @@ if __name__=="__main__":
         if args.full:
             input_imgdir = Path(site) / "input_images"
             img_list = list([x.stem for x in input_imgdir.glob("*" + ".tif")])
-            copy_img_and_label(n_labeled, site, labeled_output)
+            copy_img_and_label(img_list, site, labeled_output)
         else:
             copy_img_and_label(n_labeled, site, labeled_output)           
