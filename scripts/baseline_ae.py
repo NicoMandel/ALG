@@ -95,7 +95,14 @@ if __name__=="__main__":
     # labeled_imgs = os.path.join(labeled_output, 'images')
     # labeled_labels = os.path.join(labeled_output, 'labels')    
 
-    copy_img_and_label(n_labeled, sites_dirs[0], labeled_output)
+    # use labels here for training!
+    if args.full:
+        input_imgdir = Path(sites_dirs[0]) / "input_images"
+        img_list = list([x.stem for x in input_imgdir.glob("*" + ".tif")])
+        copy_img_and_label(img_list, sites_dirs[0], labeled_output) 
+    else:
+        copy_img_and_label(100, sites_dirs[0], labeled_output) 
+    
     model_settings = {
         "num_epochs" : epochs_labeled,          
         "model_version" : resnet_version,
