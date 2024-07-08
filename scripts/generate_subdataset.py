@@ -41,8 +41,9 @@ def parse_args():
     return parser.parse_args()
 
 
-def crop_dataset(input_dirs : list, n : int, output_dir : str, crop_size : int = 256, extension : str = "png") :
+def crop_dataset(input_dirs : list, n : int, output_dir : str, crop_size : int = 256, extension : str = "png", seed : int = 0) :
     fdirs = {}
+    np.random.seed(seed)
     for input_dir in input_dirs:
         ind = Path(input_dir)
         img_list = []
