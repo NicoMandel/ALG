@@ -19,6 +19,11 @@ def parse_resnet() -> ArgumentParser:
         "name",
         help="""name of experiment - is used as subfolder in data/ and lightning_logs/""", type=str
         )
+    
+    parser.add_argument(
+        "datadir", help="""Name of the subdirectory in data/<name> that is used to run experiments""", type=str
+    )
+    
     # number of images
     parser.add_argument(
         "--n_labeled",
@@ -60,14 +65,14 @@ if __name__=="__main__":
     args = parser.parse_args()
     np.random.seed(args.seed)
     pl.seed_everything(args.seed)
-    epochs_labeled = args.epochs_labeled     #! change back to 200
+    epochs_labeled = args.epochs_labeled     
     n_labeled = args.n_labeled
     resnet_version = args.resnet_version
     
     name =args.name
     # setup directories
     basedir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    datadir = os.path.join(basedir, 'data', args.name)
+    datadir = os.path.join(basedir, 'data', name, args.datadir)
     sites_basedir = os.path.expanduser("~/src/csu/data/ALG/sites")
     sites_dirs = [
         os.path.join(sites_basedir, "site1_McD"),
@@ -78,7 +83,7 @@ if __name__=="__main__":
 
     v_name = "baseline_resnet"
     if args.full: v_name += "_full"
-    base_logdir = os.path.join(basedir, 'lightning_logs', args.name, v_name)
+    base_logdir = os.path.join(basedir, 'lightning_logs', name, v_name)
 
     # get subdataset for labeled heads training 
     labeled_output = os.path.join(datadir, 'labeled')

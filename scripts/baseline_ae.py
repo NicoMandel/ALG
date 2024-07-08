@@ -63,7 +63,7 @@ if __name__=="__main__":
 
     # directory setup
     basedir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    datadir = os.path.join(basedir, 'data', args.name)
+    datadir = os.path.join(basedir, 'data', name, args.datadir)
     sites_basedir = os.path.expanduser("~/src/csu/data/ALG/sites")
     sites_dirs = [
         os.path.join(sites_basedir, "site1_McD"),
@@ -76,12 +76,12 @@ if __name__=="__main__":
     site1_rawdirs = get_subdirs(site_1_baseraw)
     raw_root = os.path.join(datadir, 'raw')
     raw_output = os.path.join(raw_root, 'images')
-    crop_dataset(site1_rawdirs, n_unlabled, raw_output)
+    crop_dataset(site1_rawdirs, n_unlabled, raw_output, seed=args.seed)
 
     # train autoencoder with unlabeled images
     v_name = "baseline_ae" if not args.denoising else "baseline_ae_denoise"
     if args.full: v_name += "_full" 
-    base_logdir = os.path.join(basedir, 'lightning_logs', args.name, v_name)
+    base_logdir = os.path.join(basedir, 'lightning_logs', name, v_name)
     # site_name = os.path.basename(sites_dirs[0])
     # ae_logdir = os.path.join(base_logdir, site_name, "ae")
     # autoencoder_path = train_autoencoder(32, raw_root, ae_logdir)
@@ -126,7 +126,7 @@ if __name__=="__main__":
         # generate new raw dataset
         _rawdir = os.path.join(site, 'raw')
         input_rawdirs = get_subdirs(_rawdir)
-        crop_dataset(input_rawdirs, n_unlabled, raw_output)
+        crop_dataset(input_rawdirs, n_unlabled, raw_output, seed=args.seed)
 
         # train autoencoder - with previous data + "site"
         print("Completed copying dataset - Training autoencoder for site 0 and site: {}".format(

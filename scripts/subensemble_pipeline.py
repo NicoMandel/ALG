@@ -59,7 +59,7 @@ if __name__=="__main__":
     
     # setup of directories
     basedir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    datadir = os.path.join(basedir, 'data', args.name)
+    datadir = os.path.join(basedir, 'data', name, args.datadir)
     sites_basedir = os.path.expanduser("~/src/csu/data/ALG/sites")
     sites_dirs = [
         os.path.join(sites_basedir, "site1_McD"),
@@ -74,10 +74,10 @@ if __name__=="__main__":
         site1_rawdirs = get_subdirs(site_1_baseraw)
         raw_root = os.path.join(datadir, 'raw')
         raw_output = os.path.join(raw_root, 'images')
-        crop_dataset(site1_rawdirs, n_unlabeled, raw_output)
+        crop_dataset(site1_rawdirs, n_unlabeled, raw_output, seed=args.seed)
 
     use_subensemble = args.sample # ! factor for strong baseline -> if false, will copy random images -> 
-    base_logdir = os.path.join(basedir, 'lightning_logs', args.name, 'subensemble_pipeline' if use_subensemble else "baseline_select")
+    base_logdir = os.path.join(basedir, 'lightning_logs', name, 'subensemble_pipeline' if use_subensemble else "baseline_select")
     if not autoenc:
         base_logdir = os.path.join(base_logdir, "no_ae")
     else:
@@ -123,7 +123,7 @@ if __name__=="__main__":
                 ))
             _rawdir = os.path.join(site, 'raw')
             input_rawdirs = get_subdirs(_rawdir)
-            crop_dataset(input_rawdirs, n_unlabeled, raw_output)
+            crop_dataset(input_rawdirs, n_unlabeled, raw_output, seed=args.seed)
 
             # train autoencoder - with previous data + "site"
             print("Completed copying dataset - Training autoencoder for site 0 and site: {}".format(
