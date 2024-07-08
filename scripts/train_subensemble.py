@@ -51,6 +51,12 @@ def parse_args(defdir):
 
     # optional arguments
     parser.add_argument(
+        "-e",
+        "--epochs",
+        help="""Number of Epochs to run.""",
+        default=500, type=int
+    )
+    parser.add_argument(
         "-o",
         "--optimizer",
         help="""PyTorch optimizer to use. Defaults to adam.""",
@@ -183,13 +189,14 @@ if __name__=="__main__":
     model_settings = {
         "epochs" : args.epochs,
         "num_classes" : args.num_classes,
-        "optim" : args.optim,
+        "optim" : args.optimizer,
         "lr" : args.learning_rate,
-        "bs" : args.batch_size
+        "bs" : args.batch_size,
+        "resnet_version" : 18
     }
 
     model_paths = train_subensemble(
-        modelpath, logdir, datadir, subsample=args.limit 
+        modelpath, logdir, datadir, model_settings, subsample=args.limit 
     )
     
     with open(args.output, 'w') as f:

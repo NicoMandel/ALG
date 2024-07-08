@@ -24,9 +24,10 @@ def default_arguments(basedir : str):
     args = {
         "mdl_pths" : lines,
         "num_classes": 1,
-        "resnet" : 18,
+        # "resnet" : 18,
         "bs" : 32,
-        "dataset" : "data/combined"     # /test        
+        "dataset" : "data/combined",     # /test 
+        "resnet_version" : 18      
     }
     return args
 
@@ -111,7 +112,7 @@ if __name__=="__main__":
     # get the model
     args = default_arguments(basedir)
     logdir = os.path.join(basedir, 'lightning_logs', 'subensemble')
-    df = test_subensemble(args["mdl_pths"], args["dataset"], args, logdir)
+    df = test_subensemble("inference", args["mdl_pths"], args["dataset"], args, logdir)
 
     df.sort_values('entropy', inplace=True, ascending=False)
     print(df.head(20))
