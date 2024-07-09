@@ -11,6 +11,16 @@ from alg.utils import copy_img_and_label
 from train_model import train_model
 from test_model import test_model
 
+def get_sites() -> tuple[list, str]:
+    sites_basedir = os.path.expanduser("~/src/csu/data/ALG/sites")
+    sites_dirs = [
+        os.path.join(sites_basedir, "site1_McD"),
+        os.path.join(sites_basedir, "site2_GC"),
+        os.path.join(sites_basedir, "site3_Kuma"),
+        os.path.join(sites_basedir, "site4_TSR")
+    ]
+    img_folder = "ortho_raw"
+    return sites_dirs, img_folder
 
 def parse_resnet() -> ArgumentParser:
     parser = ArgumentParser("Script Setup")
@@ -73,13 +83,7 @@ if __name__=="__main__":
     # setup directories
     basedir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
     datadir = os.path.join(basedir, 'data', name, args.datadir)
-    sites_basedir = os.path.expanduser("~/src/csu/data/ALG/sites")
-    sites_dirs = [
-        os.path.join(sites_basedir, "site1_McD"),
-        os.path.join(sites_basedir, "site2_GC"),
-        os.path.join(sites_basedir, "site3_Kuma"),
-        os.path.join(sites_basedir, "site4_TSR")
-    ]
+    sites_dirs, _ = get_sites()
 
     v_name = "baseline_resnet"
     if args.full: v_name += "_full"
@@ -94,7 +98,7 @@ if __name__=="__main__":
         img_list = list([x.stem for x in input_imgdir.glob("*" + ".tif")])
         copy_img_and_label(img_list, sites_dirs[0], labeled_output) 
     else:
-        copy_img_and_label(100, sites_dirs[0], labeled_output) 
+        copy_img_and_label(100, sites_dirs[0], labeled_output, seed=args.seed) 
 
     model_settings = {
         "num_epochs" : epochs_labeled,         
@@ -150,4 +154,4 @@ if __name__=="__main__":
             img_list = list([x.stem for x in input_imgdir.glob("*" + ".tif")])
             copy_img_and_label(img_list, site, labeled_output)
         else:
-            copy_img_and_label(n_labeled, site, labeled_output)           
+            copy_img_and_label(n_labeled, site, labeled_output, args.seed)           

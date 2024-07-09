@@ -7,8 +7,8 @@ from generate_subdataset import crop_dataset
 from train_autoencoder import train_autoencoder
 from train_subensemble import train_subensemble
 from test_subensemble import test_subensemble
-from alg.utils import get_subdirs, copy_img_and_label
-from baseline_resnet import parse_resnet
+from alg.utils import copy_img_and_label
+from baseline_resnet import parse_resnet, get_sites
 from baseline_ae import parse_ae
 
 def parse_subens(parser : ArgumentParser) -> ArgumentParser:
@@ -60,21 +60,15 @@ if __name__=="__main__":
     # setup of directories
     basedir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
     datadir = os.path.join(basedir, 'data', name, args.datadir)
-    sites_basedir = os.path.expanduser("~/src/csu/data/ALG/sites")
-    sites_dirs = [
-        os.path.join(sites_basedir, "site1_McD"),
-        os.path.join(sites_basedir, "site2_GC"),
-        os.path.join(sites_basedir, "site3_Kuma"),
-        os.path.join(sites_basedir, "site4_TSR")
-    ]
+    sites_dirs, img_folder = get_sites()
 
     # start with Site 1 - unlabeled images + 100 labeled images
     if autoenc:
-        site_1_baseraw = os.path.join(sites_dirs[0], 'raw')
-        site1_rawdirs = get_subdirs(site_1_baseraw)
+        site_1_rawdir = os.path.join(sites_dirs[0], img_folder)
+        
         raw_root = os.path.join(datadir, 'raw')
         raw_output = os.path.join(raw_root, 'images')
-        crop_dataset(site1_rawdirs, n_unlabeled, raw_output, seed=args.seed)
+        crop_dataset([site_1_rawdir], n_unlabeled, raw_output, seed=args.seed)
 
     use_subensemble = args.sample # ! factor for strong baseline -> if false, will copy random images -> 
     base_logdir = os.path.join(basedir, 'lightning_logs', name, 'subensemble_pipeline' if use_subensemble else "baseline_select")
@@ -98,7 +92,7 @@ if __name__=="__main__":
     # labeled_labels = os.path.join(labeled_output, 'labels')    
 
     #! always start with 100 labeled and then add 20
-    copy_img_and_label(100, sites_dirs[0], labeled_output)
+    copy_img_and_label(100, sites_dirs[0], labeled_output, seed=args.seed)
     # train_subensembles - return position 0 is the autoencoder path, the others are the heads
     model_settings = {
         "epochs" : epochs_labeled,          
@@ -112,32 +106,35 @@ if __name__=="__main__":
     # subens_paths = train_subensemble(autoencoder_path, se_logdir, labeled_output, model_settings)
 
     load_true = True
-    for site in sites_dirs[1:]:
+    for i, site in enumerate(sites_dirs[1:]):
         site_name = os.path.basename(site)
         logdir = os.path.join(base_logdir, site_name)
+        prev_sitename = os.path.basename(sites_dirs[i-1])
+        subens_logdir = os.path.join(base_logdir, prev_sitename)
 
         # generate new raw dataset
         if autoenc:
             print("Generating raw dataset for autoencoder training from site: {}".format(
                     site_name
                 ))
-            _rawdir = os.path.join(site, 'raw')
-            input_rawdirs = get_subdirs(_rawdir)
-            crop_dataset(input_rawdirs, n_unlabeled, raw_output, seed=args.seed)
+            rawdir = os.path.join(site, img_folder)
+            crop_dataset([rawdir], n_unlabeled, raw_output, seed=args.seed)
 
             # train autoencoder - with previous data + "site"
-            print("Completed copying dataset - Training autoencoder for site 0 and site: {}".format(
-                site
+            print("Completed copying dataset - Training autoencoder for site: {}".format(
+                site_name
             ))
             ae_logdir = os.path.join(logdir, "ae")
             autoenc_path = train_autoencoder(32, raw_root, ae_logdir, resnet_version=resnet_version, epochs_unlabeled=epochs_unlabeled, denoising=denoising)
 
-            print("Completed training autoencoder - training subensemble heads on labeled dataset from sites previous to {}".format(
-                site
+            print("Completed training autoencoder")
+            
+        print("Training subensemble heads on labeled dataset from sites {}".format(
+                prev_sitename
             ))
 
         # train heads with dataset from sites-1 
-        subens_paths = train_subensemble(autoenc_path if autoenc else None, logdir, labeled_output, model_settings, n=args.heads, seed=args.seed)
+        subens_paths = train_subensemble(autoenc_path if autoenc else None, subens_logdir, labeled_output, model_settings, n=args.heads, seed=args.seed)
 
         # inference subensemble on site
         site_p = os.path.join(site, "input_images") 
@@ -157,4 +154,4 @@ if __name__=="__main__":
             print("Accuracy: for site: {}: {}".format(site_name, acc))
 
         # copy the files
-        copy_img_and_label(label_names if use_subensemble else n_labeled, site, labeled_output)        
+        copy_img_and_label(label_names if use_subensemble else n_labeled, site, labeled_output, seed=args.seed)        

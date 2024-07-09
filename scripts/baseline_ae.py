@@ -8,10 +8,10 @@ import pytorch_lightning as pl
 
 from generate_subdataset import crop_dataset
 from train_autoencoder import train_autoencoder
-from alg.utils import get_subdirs, copy_img_and_label
+from alg.utils import copy_img_and_label
 from train_from_ae import train_resnet_from_ae
 from test_model import test_model
-from baseline_resnet import parse_resnet
+from baseline_resnet import parse_resnet, get_sites
 
 def parse_ae(parser : ArgumentParser) -> ArgumentParser:
 
@@ -64,19 +64,14 @@ if __name__=="__main__":
     # directory setup
     basedir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
     datadir = os.path.join(basedir, 'data', name, args.datadir)
-    sites_basedir = os.path.expanduser("~/src/csu/data/ALG/sites")
-    sites_dirs = [
-        os.path.join(sites_basedir, "site1_McD"),
-        os.path.join(sites_basedir, "site2_GC"),
-        os.path.join(sites_basedir, "site3_Kuma"),
-        os.path.join(sites_basedir, "site4_TSR")
-    ]
+    
     # start with Site 1 - unlabeled images + 100 labeled images
-    site_1_baseraw = os.path.join(sites_dirs[0], 'raw')
-    site1_rawdirs = get_subdirs(site_1_baseraw)
+    sites_dirs, img_folder = get_sites()
+    site_1_raw = os.path.join(sites_dirs[0], img_folder)
+
     raw_root = os.path.join(datadir, 'raw')
     raw_output = os.path.join(raw_root, 'images')
-    crop_dataset(site1_rawdirs, n_unlabled, raw_output, seed=args.seed)
+    crop_dataset([site_1_raw], n_unlabled, raw_output, seed=args.seed)
 
     # train autoencoder with unlabeled images
     v_name = "baseline_ae" if not args.denoising else "baseline_ae_denoise"
@@ -101,7 +96,7 @@ if __name__=="__main__":
         img_list = list([x.stem for x in input_imgdir.glob("*" + ".tif")])
         copy_img_and_label(img_list, sites_dirs[0], labeled_output) 
     else:
-        copy_img_and_label(100, sites_dirs[0], labeled_output) 
+        copy_img_and_label(100, sites_dirs[0], labeled_output, args.seed) 
     
     model_settings = {
         "num_epochs" : epochs_labeled,          
@@ -124,9 +119,8 @@ if __name__=="__main__":
         ))
 
         # generate new raw dataset
-        _rawdir = os.path.join(site, 'raw')
-        input_rawdirs = get_subdirs(_rawdir)
-        crop_dataset(input_rawdirs, n_unlabled, raw_output, seed=args.seed)
+        input_rawdir = os.path.join(site, img_folder)
+        crop_dataset([input_rawdir], n_unlabled, raw_output, seed=args.seed)
 
         # train autoencoder - with previous data + "site"
         print("Completed copying dataset - Training autoencoder for site 0 and site: {}".format(
@@ -175,4 +169,4 @@ if __name__=="__main__":
             img_list = list([x.stem for x in input_imgdir.glob("*" + ".tif")]) 
             copy_img_and_label(img_list, site, labeled_output)
         else:
-            copy_img_and_label(n_labeled, site, labeled_output)
+            copy_img_and_label(n_labeled, site, labeled_output, seed=args.seed)
