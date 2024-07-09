@@ -53,6 +53,8 @@ class SubEnsemble(pl.LightningModule):
 
         self.from_resnets(*heads)
         self.load_true = load_true
+        self.binary = True if num_classes == 1 else False
+
         # for visulising the model, an example input array is needed
         self.example_input_array = torch.zeros(2,3,256,256)
         self.save_hyperparameters()
@@ -92,7 +94,7 @@ class SubEnsemble(pl.LightningModule):
     def forward(self, x):
         # self._check_device_fcl(x)
         embed =  self.resnet_model(x)
-        if self.num_classes == 1:
+        if self.binary:
             y_pred = torch.stack([(fcl(embed).sigmoid()) for fcl in self.fc_layers], dim=1).squeeze()
         else:
             y_pred = torch.stack([F.softmax(fcl(embed), dim=1) for fcl in self.fc_layers], dim=1)
@@ -109,10 +111,10 @@ class SubEnsemble(pl.LightningModule):
         if self.load_true:
             fname, label = info
         # y, fname =  info
-        y_pred = self.forward(x)    
-        cls_inds = (y_pred>0.5).int()    # https://stackoverflow.com/questions/58002836/pytorch-1-if-x-0-5-else-0-for-x-in-outputs-with-tensors
-        vote = self.calculate_vote(y_pred)         # https://stackoverflow.com/questions/67510845/given-multiple-prediction-vectors-how-to-efficiently-obtain-the-label-with-most
-        entr = compute_entropy(y_pred, axis=1)
+        y_prob = self.forward(x)
+        cls_inds = (y_prob>0.5).int()    # https://stackoverflow.com/questions/58002836/pytorch-1-if-x-0-5-else-0-for-x-in-outputs-with-tensors
+        vote = self.calculate_vote(y_prob)         # https://stackoverflow.com/questions/67510845/given-multiple-prediction-vectors-how-to-efficiently-obtain-the-label-with-most
+        entr = compute_entropy(y_prob.mean(axis=1), binary=self.binary)
         if self.load_true:
             ret_d = dict(zip(fname, zip(vote.detach().cpu().numpy(), cls_inds.detach().cpu().numpy(), entr.detach().cpu().numpy(), label.detach().cpu().numpy())))
             acc = self.acc(vote.detach().cpu().float(), label.detach().cpu())
@@ -122,14 +124,14 @@ class SubEnsemble(pl.LightningModule):
         # return list(zip(fname, y, vote, cls_inds, entr))       
         return ret_d
 
-    def calculate_vote(self, y_prediction : torch.Tensor):
+    def calculate_vote(self, y_prob : torch.Tensor):
         """
             Function to calculate the vote
         """
         # ! old version
-        # vote = torch.mode((prediction>0.5).int() , dim=1).values
+        # vote = torch.mode((prob>0.5).int() , dim=1).values
         # new version
-        ypp = y_prediction.sigmoid().mean(axis=1)
+        ypp = y_prob.mean(axis=1)
         vote = (ypp>0.5).int()
         return vote    
     

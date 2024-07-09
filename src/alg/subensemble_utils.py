@@ -23,12 +23,21 @@ def negative_log_likelihood(y_true : np.ndarray | torch.Tensor, y_pred : np.ndar
     else:
         return _negative_log_likelihood_pt(y_true, y_pred)
     
-def compute_entropy(data, axis=-1):
+def compute_entropy(data, axis=-1, binary : bool = False):
+    if binary:
+        return _compute_binary_entropy(data)
     if isinstance(data, np.ndarray):
         cls = np
     else:
         cls = torch
     return cls.sum(-data * cls.log(data + EPSILON2), axis=axis)
+
+def _compute_binary_entropy(data : torch.Tensor | np.ndarray):
+    if isinstance(data, np.ndarray):
+        cls = np
+    else:
+        cls = torch
+    return -data * cls.log(data + EPSILON2)
 
 class ParallelModule(nn.Sequential):
     def __init__(self, *args):
