@@ -17,7 +17,7 @@ from alg.subensemble import SubEnsemble
 from alg.subensemble_dataset import SubensembleDataset
 
 def default_arguments(basedir : str):
-    subens_file = os.path.join(basedir, "subensemble_files.txt")
+    subens_file = os.path.join(basedir, "se_files_2.txt")
     with open(subens_file, 'r') as f:
         lines= [line.rstrip() for line in f]
     
@@ -42,7 +42,7 @@ def test_subensemble(mode: str, mdl_pths : list, dataset_path : str, model_setti
         model_settings["resnet_version"],
         transfer=True,
         heads=mdl_pths[1:],
-        load_true = True
+        load_true = load_true
     )
     print("Loading backbone from: {}".format(mdl_pths[0]))
     if from_ae:
@@ -71,7 +71,7 @@ def test_subensemble(mode: str, mdl_pths : list, dataset_path : str, model_setti
         img_folder=img_folder,
         label_folder=label_folder,
         # label_ext=".txt",
-        load_true=True,
+        load_true=load_true,
     )
     if subset_n:
         ds_inds = np.random.choice(len(base_ds), subset_n)
@@ -96,7 +96,6 @@ def test_subensemble(mode: str, mdl_pths : list, dataset_path : str, model_setti
     
     elif mode == "inference":
         results = trainer.predict(subens_model, dl)
-        dld ={}
         dld = {}
         [dld.update(a) for a in results]
         columns = ["vote", "class_indices", "entropy"]
@@ -111,8 +110,8 @@ if __name__=="__main__":
     basedir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
     # get the model
     args = default_arguments(basedir)
-    logdir = os.path.join(basedir, 'lightning_logs', 'subensemble')
-    df = test_subensemble("inference", args["mdl_pths"], args["dataset"], args, logdir)
+    logdir = os.path.join(basedir, 'lightning_logs', 'set')
+    df = test_subensemble("inference", args["mdl_pths"], args["dataset"], args, logdir, load_true=True, subset_n=2000)
 
     df.sort_values('entropy', inplace=True, ascending=False)
     print(df.head(20))
