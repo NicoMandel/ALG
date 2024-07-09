@@ -66,7 +66,7 @@ def model_settings_from_args(args) -> dict:
 def get_subdirs(dirname : str) -> list[str]:
     return [os.path.join(dirname, name) for name in os.listdir(dirname) if os.path.isdir(os.path.join(dirname, name))]
 
-def copy_img_and_label(n : int | list, input_basedir : str, output_basedir : str, i_imgs : str = "input_images", i_labels : str = "mask_images", o_imgs : str = "images", o_labels : str = "labels", fext : str = ".tif"):
+def copy_img_and_label(n : int | list, input_basedir : str, output_basedir : str, i_imgs : str = "input_images", i_labels : str = "mask_images", o_imgs : str = "images", o_labels : str = "labels", fext : str = ".tif", seed : int =0):
     input_imgdir = Path(input_basedir) / i_imgs
     input_labeldir = Path(input_basedir) / i_labels
     
@@ -74,6 +74,7 @@ def copy_img_and_label(n : int | list, input_basedir : str, output_basedir : str
     output_labeldir = Path(output_basedir) / o_labels
 
     if isinstance(n, int):
+        np.random.seed(seed)
         img_list = list([x.stem for x in input_imgdir.glob("*" + fext)])
         img_ids = np.random.choice(img_list, n)
     else:

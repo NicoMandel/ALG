@@ -96,7 +96,7 @@ if __name__=="__main__":
         img_list = list([x.stem for x in input_imgdir.glob("*" + ".tif")])
         copy_img_and_label(img_list, sites_dirs[0], labeled_output) 
     else:
-        copy_img_and_label(100, sites_dirs[0], labeled_output, args.seed) 
+        copy_img_and_label(100, sites_dirs[0], labeled_output, seed=args.seed) 
     
     model_settings = {
         "num_epochs" : epochs_labeled,          
