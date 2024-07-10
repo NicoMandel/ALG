@@ -3,9 +3,9 @@
 trap "exit" INT
 
 clean_datadirs() {
-    rm "$1/labeled/images/*.tif"
-    rm "$1/labeled/labels/*.tif"
-    rm "$1/raw/images/*.png"
+    rm $1/labeled/images/*.tif
+    rm $1/labeled/labels/*.tif
+    rm $1/raw/images/*.png
     echo "cleaned $1"
 }
 
@@ -16,25 +16,26 @@ clean_datadirs() {
 
 # number setup
 #! correct values
-# n_labeled=100
-# n_unlabeled=3000
-# epochs_labeled=200
-# epochs_unlabeled=700
-# seed=42
-# heads=10
-# name="eccv_v200"
-
-n_labeled=10
-n_unlabeled=20
-epochs_labeled=10
-epochs_unlabeled=10
+n_labeled=100
+n_unlabeled=2000
+epochs_labeled=200
+epochs_unlabeled=500
 seed=42
-heads=5
-name="eccv_v200"
+heads=10
+name="eccv_v300"
+
+# ! test values
+# n_labeled=10
+# n_unlabeled=20
+# epochs_labeled=5
+# epochs_unlabeled=5
+# seed=42
+# heads=5
+# name="eccv_v300"
 
 # dir setup
 data_subdir="subensemble"
-datadir_ssd="/home/mandel/data_ssd/v_200/data/$data_subdir"
+datadir_ssd="/home/mandel/data_ssd/v_300/data/$data_subdir"
 
 # Cleaning before a new run!
 clean_datadirs $datadir_ssd
