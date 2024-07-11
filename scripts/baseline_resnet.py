@@ -106,7 +106,7 @@ if __name__=="__main__":
         "num_classes" : 1,
         "optim" : "adam",
         "lr" : 1e-3,
-        "bs" : 16,
+        "bs" : 32,
         "transfer" : True,
         "threshold" : 0.5,
         "tune_fc_only" : False,

@@ -32,7 +32,7 @@ def default_arguments(basedir : str):
     return args
 
 def test_subensemble(mode: str, mdl_pths : list, dataset_path : str, model_settings : dict, logdir : str,
-                          img_folder : str = "images", label_folder : str = "labels", load_true : bool=False, from_ae : bool = True,
+                          img_folder : str = "images", label_folder : str = "labels", load_true : bool=False, from_ae : bool = True, from_retrain : bool = False,
                           subset_n : int = None) -> float | pd.DataFrame:
     """
         mode should be either "test" or "inference"
@@ -45,7 +45,7 @@ def test_subensemble(mode: str, mdl_pths : list, dataset_path : str, model_setti
         load_true = load_true
     )
     print("Loading backbone from: {}".format(mdl_pths[0]))
-    if from_ae:
+    if (not from_retrain) and from_ae:
         resn_ae = ResnetAutoencoder.load_from_checkpoint(checkpoint_path = mdl_pths[0])
         missing_keys, unexp_keys = subens_model.from_AE(resn_ae)
         if missing_keys or unexp_keys: print("Missing Layers: {},\n\nUnexpected Layers: {}".format(missing_keys, unexp_keys))

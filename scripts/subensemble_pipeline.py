@@ -7,7 +7,7 @@ from generate_subdataset import crop_dataset
 from train_autoencoder import train_autoencoder
 from train_subensemble import train_subensemble
 from test_subensemble import test_subensemble
-from alg.utils import copy_img_and_label
+from alg.utils import copy_img_and_label, clean_directory
 from baseline_resnet import parse_resnet, get_sites
 from baseline_ae import parse_ae
 
@@ -99,12 +99,13 @@ if __name__=="__main__":
         "num_classes" : 1,
         "optim" : "adam",
         "lr" : 1e-3,
-        "bs" : 16,
+        "bs" : 32,
         "resnet_version" : resnet_version   # 18 or 34
     }
     # se_logdir = os.path.join(base_logdir, site_name)
     # subens_paths = train_subensemble(autoencoder_path, se_logdir, labeled_output, model_settings)
-
+    if args.retrain: subens_paths = [None] # if retraining from the last one, then
+    
     load_true = True
     for i, site in enumerate(sites_dirs[1:]):
         site_name = os.path.basename(site)
@@ -125,9 +126,21 @@ if __name__=="__main__":
                 site_name
             ))
             ae_logdir = os.path.join(logdir, "ae")
-            autoenc_path = train_autoencoder(32, raw_root, ae_logdir, resnet_version=resnet_version, epochs_unlabeled=epochs_unlabeled, denoising=denoising)
+            autoenc_path = train_autoencoder(
+                32,
+                raw_root,
+                ae_logdir,
+                resnet_version=resnet_version, 
+                epochs_unlabeled=epochs_unlabeled,
+                denoising=denoising,
+                use_fft=True,
+                prev_model = subens_paths[0] if args.retrain else None
+                )
 
             print("Completed training autoencoder")
+            if args.retrain:
+                print("Retraining activated. Cleaning raw image directory from png files")
+                clean_directory(raw_output)
             
         print("Training subensemble heads on labeled dataset from sites {}".format(
                 prev_sitename
@@ -141,8 +154,8 @@ if __name__=="__main__":
         print("Starting inference on site {} with models: {}.\nLogging to:{}".format(
             site_name, subens_paths, logdir
         ))
-        res = test_subensemble("test", subens_paths, site, model_settings, logdir, img_folder="input_images", label_folder="mask_images", from_ae=autoenc, load_true=load_true)
-        df = test_subensemble("inference", subens_paths, site, model_settings, logdir, img_folder="input_images", label_folder="mask_images", from_ae=autoenc, load_true=load_true)
+        res = test_subensemble("test", subens_paths, site, model_settings, logdir, img_folder="input_images", label_folder="mask_images", from_ae=autoenc, from_retrain=args.retrain, load_true=load_true)
+        df = test_subensemble("inference", subens_paths, site, model_settings, logdir, img_folder="input_images", label_folder="mask_images", from_ae=autoenc,  from_retrain=args.retrain, load_true=load_true)
 
         # sort the label files
         df.sort_values('entropy', inplace=True, ascending=False)

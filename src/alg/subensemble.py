@@ -151,13 +151,13 @@ class SubEnsemble(pl.LightningModule):
         """
         new_dict = AE_model.encoder.net.state_dict()
         missing_keys, unexpected_keys = self.resnet_model.load_state_dict(new_dict, strict = False)
-        self.freeze_layers()
+        # self.freeze_layers()
         return missing_keys, unexpected_keys
     
     def from_classif(self, resnet_model : ResNetClassifier):
         new_dict = resnet_model.resnet_model.state_dict()
         missing_keys, unexpected_keys = self.resnet_model.load_state_dict(new_dict, strict = False)
-        self.freeze_layers()
+        # self.freeze_layers()
         return missing_keys, unexpected_keys
 
     

@@ -9,6 +9,7 @@ from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 import albumentations as A
 
+from alg.model import ResNetClassifier 
 from alg.resnet_ae import ResnetAutoencoder
 from alg.ae_utils import GenerateCallback
 from alg.ae_dataloader import ALGRAWDataModule, NoiseALGRawDataModule
@@ -96,9 +97,17 @@ def get_autoencoder_augmentations(size : int, denoising : bool = False ) -> list
         return transform, transforms
 
 def train_autoencoder(size : int, datadir : str, logdir : str, resnet_version: int  = 18, epochs_unlabeled : int = 500, 
-                      denoising : bool = False, use_fft : bool = False, scheduler : bool = False) -> str:
+                      denoising : bool = False, use_fft : bool = False, scheduler : bool = False, prev_model : dict = None,
+                      ) -> str:
     # model
     ae = ResnetAutoencoder(resnet_version, True, width=size, height=size, use_fft=use_fft, use_scheduler=scheduler)
+    
+    if prev_model is not None:
+        # prev_model is always a ResNetClassifier -> in the simple case, as well as the subens case.
+        model_p = ResNetClassifier.load_from_checkpoint(checkpoint_path = prev_model)
+        new_dict = model_p.resnet_model.state_dict()
+        ae.from_classif(new_dict)
+    
     name = str(ae) + "_alg256_{}_Ident".format(size)
 
     # Dataset

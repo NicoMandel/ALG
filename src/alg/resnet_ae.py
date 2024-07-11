@@ -217,4 +217,9 @@ class ResnetAutoencoder(pl.LightningModule):
     def test_step(self, batch, batch_idx) -> torch.Tensor:
         loss = self._get_reconstruction_loss(batch)
         self.log("test_loss", loss)
+
+    def from_classif(self, state_dict : dict):
+        missing_keys, unexpected_keys = self.encoder.net.load_state_dict(state_dict, strict = False)
+        # self.freeze_layers()
+        return missing_keys, unexpected_keys
     

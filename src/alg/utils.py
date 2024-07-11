@@ -90,3 +90,11 @@ def copy_img_and_label(n : int | list, input_basedir : str, output_basedir : str
     print("Copied {} images and associated label files from: {} to: {}".format(
         len(img_ids), input_basedir, output_basedir
     ))
+
+
+def clean_directory(dirpath : str, fext : str = ".png"):
+    """
+        Function to remove all files with a specific extension from a directory
+    """
+    dp = Path(dirpath)
+    [x.unlink() for x in dp.glob("*" + fext)]

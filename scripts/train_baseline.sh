@@ -3,9 +3,9 @@
 trap "exit" INT
 
 clean_datadirs() {
-    rm $1/labeled/images/*.tif
-    rm $1/labeled/labels/*.tif
-    rm $1/raw/images/*.png
+    find $1/labeled/images/ -maxdepth 1 -mindepth 1 -type f -name "*.tif" -delete 
+    find $1/labeled/labels/ -maxdepth 1 -mindepth 1 -type f -name "*.tif" -delete 
+    find $1/raw/images/ -maxdepth 1 -mindepth 1 -type f -name "*.png" -delete 
     echo "cleaned $1"
 }
 

@@ -103,7 +103,7 @@ def train_subensemble(backbone_path : str | None, logdir : str, dataset_path : s
     ))
     for i in range(n):
         # reset trainer
-         # Trainer arguments
+        # Trainer arguments
         fnh = fn + f"-{i}"
         checkpoint_callback = pl.callbacks.ModelCheckpoint(
             dirpath=logdir,
@@ -153,7 +153,7 @@ def train_subensemble(backbone_path : str | None, logdir : str, dataset_path : s
 
         # dataloaders
         train_dl = DataLoader(train_ds, batch_size=model_settings["bs"], num_workers=4)
-        val_dl = DataLoader(val_ds, batch_size=model_settings["bs"], num_workers=4, drop_last=True)
+        val_dl = DataLoader(val_ds, batch_size=model_settings["bs"], num_workers=4, drop_last=False)
 
         # train the model
         print("Training Subensemble with seed: {}".format(seed + i))
@@ -161,9 +161,10 @@ def train_subensemble(backbone_path : str | None, logdir : str, dataset_path : s
         best_path = checkpoint_callback.best_model_path
         print(f"Best model at: {best_path}")
         best_model = ResNetClassifier.load_from_checkpoint(best_path)
-        # if training directly without autoencoder, append the model in the first position
-        if not backbone_path and (i==0):
-            model_paths += [best_path]
+        
+        # The 0th model weights are the first position 
+        if i==0:
+            model_paths = [best_path]
             print("Backbone saved from first iteration to: {}".format(best_path))
         bmp = best_model.save_fc(str(i), trainer.logger.root_dir)
         model_paths.append(bmp)

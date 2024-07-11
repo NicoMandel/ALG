@@ -8,7 +8,7 @@ import pytorch_lightning as pl
 
 from generate_subdataset import crop_dataset
 from train_autoencoder import train_autoencoder
-from alg.utils import copy_img_and_label
+from alg.utils import copy_img_and_label, clean_directory
 from train_from_ae import train_resnet_from_ae
 from test_model import test_model
 from baseline_resnet import parse_resnet, get_sites
@@ -35,6 +35,11 @@ def parse_ae(parser : ArgumentParser) -> ArgumentParser:
         help="""Number of epochs to run on unlabeled samples""",
         type=int, default=500
     )
+
+    # whether to retrain the autoencoder from the last known model
+    parser.add_argument("--retrain",
+                        help="""Whether to retrain the autoencoder from the last known model""",
+                        action="store_true")
 
     return parser
 
@@ -104,7 +109,7 @@ if __name__=="__main__":
         "num_classes" : 1,
         "optim" : "adam",
         "lr" : 1e-3,
-        "bs" : 16,
+        "bs" : 32,
         "transfer" : True,
         "threshold" : 0.5,
         "tune_fc_only" : False,
@@ -112,6 +117,7 @@ if __name__=="__main__":
     }
 
     load_true = True
+    model_p = None
     for site in sites_dirs[1:]:
         site_name = os.path.basename(site)
         print("Generating raw dataset for autoencoder training from site: {}".format(
@@ -133,12 +139,15 @@ if __name__=="__main__":
             ae_logdir,
             resnet_version=resnet_version,
             epochs_unlabeled=epochs_unlabeled,
-            denoising=denoising
+            denoising=denoising,
+            prev_model = model_p if args.retrain else None,
             )
         print("Completed training autoencoder - training model on labeled dataset from sites previous to {}".format(
             site
         ))
-
+        if args.retrain:
+            print("Retraining activated. Cleaning raw image directory from png files")
+            clean_directory(raw_output)
         # train model with labeled dataset from sites-1 
         model_logdir = os.path.join(base_logdir, site_name)
         model_p, logger = train_resnet_from_ae(autoenc_path,
