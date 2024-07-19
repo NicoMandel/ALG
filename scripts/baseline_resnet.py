@@ -16,8 +16,8 @@ def get_sites() -> tuple[list, str]:
     sites_dirs = [
         os.path.join(sites_basedir, "site1_McD"),
         os.path.join(sites_basedir, "site2_GC"),
-        os.path.join(sites_basedir, "site3_Kuma"),
-        os.path.join(sites_basedir, "site4_TSR")
+        os.path.join(sites_basedir, "site4_TSR"),
+        os.path.join(sites_basedir, "site3_Kuma")
     ]
     img_folder = "ortho_raw"
     return sites_dirs, img_folder

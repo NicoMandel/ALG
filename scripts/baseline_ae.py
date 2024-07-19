@@ -141,6 +141,7 @@ if __name__=="__main__":
             epochs_unlabeled=epochs_unlabeled,
             denoising=denoising,
             prev_model = model_p if args.retrain else None,
+            use_fft=True
             )
         print("Completed training autoencoder - training model on labeled dataset from sites previous to {}".format(
             site

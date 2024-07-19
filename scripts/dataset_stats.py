@@ -2,6 +2,7 @@ import os.path
 import numpy as np
 from tqdm import tqdm
 import numpy as np
+from itertools import accumulate
 import cv2
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
@@ -45,13 +46,17 @@ def test_label_loading(alg_ds):
         plt.show()
 
 def test_mask_loading(alg_ds):
-    fig, axs = plt.subplots(1,2)
     for img, label in alg_ds:
+        fig, axs = plt.subplots(1,2)
         axs[0].imshow(img)
         axs[1].imshow(label)
+        axs[1].set_title("ALG: {:.2f}%".format((np.count_nonzero(label == 0) / label.size) * 100))
         # plt.imshow(img)
         # plt.title(label)
         # plt.savefig('someimg.png')
+        axs[0].axis('off')
+        axs[1].axis('off')
+        plt.tight_layout()
         plt.show()
 
 def clean_images(alg_ds, clean : bool = False, clean_value : int = 255):
@@ -125,12 +130,22 @@ def clean_raw_dataset(raw_ds, clean : bool = False, img_size : int = 256):
                 print(f"{img_name} not ({img_size} x {img_size}), but {img.size}")
     print(f"Length of Dataset: {len(raw_ds)}. Images not of size: ({img_size} x {img_size}): {ctr}, {ctr / len(raw_ds) * 100:.2f}%")
 
+def count_dataset_class_instances(ds : ALGDataset) -> float:
+    """
+        returns the percentage of images with class 1
+    """
+    labelct = sum([label for _, label in ds])
+    lblct = 0
+    for _, lab in tqdm(ds):
+        lblct += lab
+    return labelct / len(ds), lblct / len(ds)
+
 if __name__=="__main__":
     basedir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
-    dir_256 = os.path.join(basedir, 'data', '256')
-    raw_ds = ALGRAWDataset(dir_256, load_names=True)
-    clean_raw_dataset(raw_ds, img_size=256)
-    test_raw_dataset(basedir, save=True)
+    # dir_256 = os.path.join(basedir, 'data', '256')
+    # raw_ds = ALGRAWDataset(dir_256, load_names=True)
+    # clean_raw_dataset(raw_ds, img_size=256)
+    # test_raw_dataset(basedir, save=True)
     # Dataset Cleaning Block!
     dd_b = "~/src/csu/data/ALG/sites"
     ks = ["site1_McD", "site2_GC", "site3_Kuma", "site4_TSR"]
@@ -138,7 +153,12 @@ if __name__=="__main__":
     for k in ks:
         ddir = os.path.join(dd_b, k)
         alg_ds = ALGDataset(ddir, threshold=None, img_folder="input_images", label_folder="mask_images")
-        count_histograms(alg_ds, ds_title=k)
+        # count_histograms(alg_ds, ds_title=k)
+        # acc_ct, for_ct = count_dataset_class_instances(alg_ds)
+        # print("Dataset for site {}. Class ALG percentage: {:.2f} calc by accumulate, {:.2f} calc by for loop".format(
+        #     k, acc_ct * 100, for_ct * 100
+        # ))
+    test_mask_loading(alg_ds)
     datadir_site1 = "~/src/csu/data/ALG/sites/site1_McD"
     datadir_site2 = "~/src/csu/data/ALG/sites/site2_GC"
     datadir_site3 = "~/src/csu/data/ALG/sites/site3_Kuma"

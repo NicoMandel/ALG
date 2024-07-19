@@ -76,6 +76,7 @@ if __name__=="__main__":
         base_logdir = os.path.join(base_logdir, "no_ae")
     else:
         ldstr = "ae_denoise" if denoising else "ae"
+        if args.retrain: ldstr += "/retrain"    
         base_logdir = os.path.join(base_logdir, ldstr)
 
     # site_name = os.path.basename(sites_dirs[0])

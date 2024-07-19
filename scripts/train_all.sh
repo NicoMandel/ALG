@@ -22,20 +22,24 @@ epochs_labeled=200
 epochs_unlabeled=500
 seed=42
 heads=10
-name="eccv_v300"
+name="eccv_v400"
 
 # ! test values
-# n_labeled=10
-# n_unlabeled=20
+# n_labeled=5
+# n_unlabeled=10
 # epochs_labeled=5
 # epochs_unlabeled=5
 # seed=42
-# heads=5
-# name="eccv_v300"
+# heads=3
+# name="eccv_v400"
 
 # dir setup
 data_subdir="subensemble"
-datadir_ssd="/home/mandel/data_ssd/v_300/data/$data_subdir"
+datadir_ssd="/home/mandel/data_ssd/$name/data/$data_subdir"
+
+# Real file to test
+python scripts/subensemble_pipeline.py $name $data_subdir --retrain --autoenc --sample --n_labeled $n_labeled --epochs_labeled $epochs_labeled --epochs_unlabeled $epochs_unlabeled --n_unlabeled $n_unlabeled --seed $seed --heads $heads
+exit
 
 # Cleaning before a new run!
 clean_datadirs $datadir_ssd
@@ -64,4 +68,21 @@ clean_datadirs $datadir_ssd
 # without sampling
 python scripts/subensemble_pipeline.py $name $data_subdir --n_labeled $n_labeled --epochs_labeled $epochs_labeled --seed $seed --heads $heads
 echo "completed running subensemble without autoencoder and without sampling"
+clean_datadirs $datadir_ssd
+
+# Running with retraining - taking the previous model
+# run subensemble with normal autoencoder
+python scripts/subensemble_pipeline.py $name $data_subdir --autoenc --retrain  --sample --n_labeled $n_labeled --epochs_labeled $epochs_labeled --epochs_unlabeled $epochs_unlabeled --n_unlabeled $n_unlabeled --seed $seed --heads $heads
+echo "completed running subensemble with normal autoencoder and ensemble sampling"
+clean_datadirs $datadir_ssd
+python scripts/subensemble_pipeline.py $name $data_subdir --autoenc --retrain  --n_labeled $n_labeled --epochs_labeled $epochs_labeled --epochs_unlabeled $epochs_unlabeled --n_unlabeled $n_unlabeled --seed $seed --heads $heads
+echo "completed running subensemble with normal autoencoder and without sampling"
+clean_datadirs $datadir_ssd
+
+# run subensemble with denoising autoencoder
+python scripts/subensemble_pipeline.py $name $data_subdir --autoenc --denoising --retrain --sample --n_labeled $n_labeled --epochs_labeled $epochs_labeled --epochs_unlabeled $epochs_unlabeled --n_unlabeled $n_unlabeled --seed $seed --heads $heads
+echo "completed running subensemble with denoising autoencoder and sampling"
+clean_datadirs $datadir_ssd
+python scripts/subensemble_pipeline.py $name $data_subdir --autoenc --denoising --retrain --n_labeled $n_labeled --epochs_labeled $epochs_labeled --epochs_unlabeled $epochs_unlabeled --n_unlabeled $n_unlabeled --seed $seed --heads $heads
+echo "completed running subensemble with denoising autoencoder without sampling"
 clean_datadirs $datadir_ssd

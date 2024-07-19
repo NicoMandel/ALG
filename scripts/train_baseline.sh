@@ -20,7 +20,7 @@ n_unlabeled=2000
 epochs_labeled=200
 epochs_unlabeled=500
 seed=42
-name="eccv_v300"
+name="eccv_v400"
 
 # number setup
 #! test values
@@ -33,7 +33,7 @@ name="eccv_v300"
 
 # dir setup
 data_subdir="baseline"
-datadir_ssd="/home/mandel/data_ssd/v_300/data/$data_subdir"
+datadir_ssd="/home/mandel/data_ssd/$name/data/$data_subdir"
 
 
 # Cleaning before a new run!
